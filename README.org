@@ -1,0 +1,34 @@
+#+title: README
+
+* LoadModules
+#+begin_src bash :tangle loadModules.sh
+# to run this file type the below command in your terminal after login
+# . path_to_loadModules.sh (eg: . /home/user1/loadModules)
+# this will source your spack
+source /home/apps/spack/share/spack/setup-env.sh
+
+# to load gcc
+# enter your version hash after '/'
+# the same you'll have to do for every packages you want to load
+# general syntax : spack load package_name/package-hash
+# if there are only one version of package installed in your system then
+# you only need to do : 'spack load gcc' and it will load the available version
+spack load gcc/your-version-hash
+
+#+end_src
+
+* Shavak loading packages
+- I created a file ~loadModules~ located in the root folder of this repo.
+- ~loadModules~ is the script to load your modules after login to your shavak.
+- To run that file save it in your home folder (or at your desired location) and type the below command in terminal.
+#+begin_src bash
+. path_to_your_loadModules.sh
+# if you saved your file in your home folder then type
+. ~/loadModules.sh
+#+end_src
+- Remember if your spack is not working or giving errors then do the following fixes.
+  + First check if you are working in conda environment or not.
+  + (base) will be showing in the beginning of your shell prompt.
+  + Now deactivate the conda environment using command: ~conda deactivate~.
+  + After typing above command (base) will deactivate.
+  + Now relogin to your shavak and follow the above steps to load Modules.
