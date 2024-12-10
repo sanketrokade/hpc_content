@@ -1,0 +1,158 @@
+#+title: Test
+* Performance Metrics
+
+The study of performance metrics is crucial in evaluating the efficiency and scalability of computational systems. In this module, we will discuss various performance metrics such as Speedup, Efficiency, Amdahl's Law, scalability (both weak and strong), performance per watt, and Arithmetic Intensity. These metrics help in understanding how well a system performs and where improvements can be made.
+
+** 1. Performance Metrics Overview
+
+Performance metrics are quantitative measures used to evaluate the efficiency, speed, and scalability of computing systems. They allow us to compare different systems, configurations, and optimization strategies.
+
+Some common performance metrics include:
+- Execution Time (Time to run a given workload)
+- Throughput (Amount of work done per unit time)
+- Latency (Time to complete a task or request)
+- Energy consumption (Power usage over time)
+
+** 2. Speedup
+
+Speedup is a metric that compares the performance of a parallel system to a sequential system.
+
+- **Definition:** Speedup is defined as the ratio of the time taken to execute a task sequentially to the time taken to execute the same task in parallel.
+
+  \[
+  \text{Speedup} = \frac{T_{\text{sequential}}}{T_{\text{parallel}}}
+  \]
+
+- **Example:**
+
+  Suppose a task takes 100 seconds to execute sequentially and 25 seconds to execute in parallel on 4 processors.
+
+  \[
+  \text{Speedup} = \frac{100}{25} = 4
+  \]
+
+  This means the parallel system is 4 times faster than the sequential system.
+
+** 3. Efficiency
+
+Efficiency is a measure of how effectively the available processors are utilized in a parallel system.
+
+- **Definition:** Efficiency is the ratio of speedup to the number of processors used.
+
+  \[
+  \text{Efficiency} = \frac{\text{Speedup}}{P}
+  \]
+
+  Where \( P \) is the number of processors.
+
+- **Example:**
+
+  From the previous example, if the parallel system uses 4 processors:
+
+  \[
+  \text{Efficiency} = \frac{4}{4} = 1
+  \]
+
+  The efficiency is 1, meaning all processors are fully utilized.
+
+  If the speedup was only 3 instead of 4, efficiency would be:
+
+  \[
+  \text{Efficiency} = \frac{3}{4} = 0.75
+  \]
+
+  This indicates that some processors are underutilized.
+
+** 4. Amdahl's Law
+
+Amdahl’s Law provides a theoretical upper bound on the speedup of a parallel program.
+
+- **Definition:** Amdahl’s Law is used to predict the maximum speedup of a program when only a portion of the program can be parallelized.
+
+  \[
+  S = \frac{1}{(1 - P) + \frac{P}{N}}
+  \]
+
+  Where:
+  - \( S \) is the speedup,
+  - \( P \) is the proportion of the program that can be parallelized,
+  - \( N \) is the number of processors.
+
+- **Example:**
+
+  Let’s say 90% of a program can be parallelized, and it runs on 4 processors.
+
+  \[
+  S = \frac{1}{(1 - 0.9) + \frac{0.9}{4}} = \frac{1}{0.1 + 0.225} = \frac{1}{0.325} \approx 3.08
+  \]
+
+  This means the maximum speedup is approximately 3.08, even though 90% of the program is parallelizable.
+
+** 5. Weak and Strong Scalability
+
+Scalability refers to the ability of a system to handle increasing problem sizes or processor counts efficiently.
+
+- **Strong Scalability:** Strong scalability measures how the execution time decreases as more processors are added, with a fixed problem size.
+
+  - **Goal:** To achieve faster execution by increasing the number of processors for a fixed-size workload.
+
+- **Weak Scalability:** Weak scalability measures how well the system performs as the problem size grows with the number of processors.
+
+  - **Goal:** To maintain a constant execution time by increasing the problem size in proportion to the number of processors.
+
+** 6. Performance/Watt
+
+Performance per watt measures the efficiency of a system in terms of energy consumption. It is especially important in mobile and energy-conscious computing environments.
+
+- **Definition:** It is the ratio of the system's performance (e.g., throughput) to its power consumption.
+
+  \[
+  \text{Performance/Watt} = \frac{\text{Performance (e.g., FLOPS)}}{\text{Power (W)}}
+  \]
+
+- **Example:**
+
+  If a system performs 1 billion floating point operations per second (GFLOPS) and consumes 100 watts of power:
+
+  \[
+  \text{Performance/Watt} = \frac{1 \text{ GFLOPS}}{100 \text{ W}} = 0.01 \text{ GFLOPS/W}
+  \]
+
+  This means the system performs 0.01 GFLOPS for each watt of power consumed.
+
+** 7. Arithmetic Intensity (FLOPS/Bytes)
+
+Arithmetic intensity measures the ratio of floating point operations (FLOPS) to memory operations (bytes). It is a key indicator of whether a program is bound by computational resources or memory bandwidth.
+
+- **Definition:** It is the ratio of the number of floating point operations (FLOPS) to the amount of data moved (in bytes).
+
+  \[
+  \text{Arithmetic Intensity} = \frac{\text{FLOPS}}{\text{Bytes}}
+  \]
+
+- **Example:**
+
+  If a program performs 10^9 floating point operations and moves 10^8 bytes of data:
+
+  \[
+  \text{Arithmetic Intensity} = \frac{10^9}{10^8} = 10
+  \]
+
+  This means for every byte of data moved, the program performs 10 floating point operations.
+
+** 8. Summary
+
+Understanding and applying these performance metrics help in assessing the efficiency of parallel systems, optimizing performance, and guiding design choices. The use of these metrics allows for better decision-making in selecting hardware, software, and algorithms for various computational tasks.
+
+** Exercises
+
+1. Calculate the speedup and efficiency for a given problem where the sequential execution time is 200 seconds, and the parallel execution time on 8 processors is 40 seconds.
+2. Given a program that can be 80% parallelized, calculate the speedup for 4 processors using Amdahl's Law.
+3. Compare the strong scalability of a system using 2 processors and 4 processors for a fixed-size problem. Determine the speedup for each case.
+4. Calculate the performance/watt for a system that performs 5 GFLOPS and consumes 250 watts of power.
+5. Calculate the arithmetic intensity of a program that performs 2 * 10^9 FLOPS and moves 5 * 10^8 bytes of data.
+
+** References
+
+- "Parallel Programming in C with MPI and OpenMP," Quinn, M. J., 2004.
+- "The Art of Computer Systems Performance Analysis," W. W. H. E. Morgan Kaufmann, 1991.

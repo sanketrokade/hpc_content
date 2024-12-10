@@ -1,0 +1,133 @@
+#+title: Test2
+* Performance Metrics
+
+In this module, we'll learn about different performance metrics used to measure the efficiency and scalability of computer systems. These metrics help us understand how well a system performs and where improvements can be made.
+
+** 1. Performance Metrics Overview
+
+Performance metrics are used to evaluate how well a system performs in terms of speed, resource usage, and efficiency. Some common metrics are:
+- Execution Time (Time taken to run a task)
+- Throughput (Amount of work done in a unit of time)
+- Latency (Time to complete a task)
+- Energy consumption (Power used over time)
+
+** 2. Speedup
+
+Speedup is a way to compare how fast a parallel system is compared to a single processor.
+
+- **Definition:** Speedup is the ratio of the time it takes to complete a task sequentially to the time it takes when running it in parallel.
+
+  \[
+  \text{Speedup} = \frac{T_{\text{sequential}}}{T_{\text{parallel}}}
+  \]
+
+- **Example:**
+
+  If a task takes 100 seconds to complete sequentially and 25 seconds when done in parallel on 4 processors, the speedup is:
+
+  \[
+  \text{Speedup} = \frac{100}{25} = 4
+  \]
+
+  This means the parallel system is 4 times faster than the sequential one.
+
+** 3. Efficiency
+
+Efficiency shows how well the processors are being used in a parallel system.
+
+- **Definition:** Efficiency is the speedup divided by the number of processors used.
+
+  \[
+  \text{Efficiency} = \frac{\text{Speedup}}{P}
+  \]
+
+  Where \( P \) is the number of processors.
+
+- **Example:**
+
+  From the previous example, if there are 4 processors:
+
+  \[
+  \text{Efficiency} = \frac{4}{4} = 1
+  \]
+
+  This means the system is fully using all 4 processors. If the speedup was 3 instead of 4, efficiency would be:
+
+  \[
+  \text{Efficiency} = \frac{3}{4} = 0.75
+  \]
+
+  This would mean that some processors are not being fully used.
+
+** 4. Amdahl's Law
+
+Amdahl's Law helps us understand the maximum speedup we can achieve when only part of a program can be parallelized.
+
+- **Definition:** Amdahl’s Law is used to predict the speedup based on how much of a program can be parallelized.
+
+  \[
+  S = \frac{1}{(1 - P) + \frac{P}{N}}
+  \]
+
+  Where:
+  - \( S \) is the speedup,
+  - \( P \) is the part of the program that can be parallelized,
+  - \( N \) is the number of processors.
+
+- **Example:**
+
+  If 90% of a program can be parallelized and it runs on 4 processors:
+
+  \[
+  S = \frac{1}{(1 - 0.9) + \frac{0.9}{4}} = \frac{1}{0.1 + 0.225} = \frac{1}{0.325} \approx 3.08
+  \]
+
+  The maximum speedup in this case is about 3.08, even though 90% of the program can be parallelized.
+
+** 5. Weak and Strong Scalability
+
+Scalability refers to how well a system can handle more work or processors.
+
+- **Strong Scalability:** This measures how the execution time changes when we add more processors to a fixed problem size.
+
+- **Weak Scalability:** This measures how well the system performs when both the problem size and the number of processors are increased together.
+
+** 6. Performance/Watt
+
+Performance per watt measures how efficiently a system performs relative to the amount of energy it consumes. This is important in systems where energy efficiency is a concern, like in mobile devices.
+
+- **Definition:** It is the ratio of performance (like FLOPS) to power usage (in watts).
+
+  \[
+  \text{Performance/Watt} = \frac{\text{Performance}}{\text{Power (W)}}
+  \]
+
+- **Example:**
+
+  If a system performs 1 billion floating-point operations per second (1 GFLOPS) and consumes 100 watts of power:
+
+  \[
+  \text{Performance/Watt} = \frac{1 \text{ GFLOPS}}{100 \text{ W}} = 0.01 \text{ GFLOPS/W}
+  \]
+
+  This means the system performs 0.01 GFLOPS for each watt of power it uses.
+
+** 7. Arithmetic Intensity (FLOPS/Bytes)
+
+Arithmetic intensity is a measure of how much work a program does compared to how much data it moves.
+
+- **Definition:** It is the ratio of the number of floating-point operations to the amount of data moved in bytes.
+
+  \[
+  \text{Arithmetic Intensity} = \frac{\text{FLOPS}}{\text{Bytes}}
+  \]
+
+- **Example:**
+
+  If a program performs 10^9 floating-point operations and moves 10^8 bytes of data, its arithmetic intensity is:
+
+  \[
+  \text{Arithmetic Intensity} = \frac{10^9}{10^8} = 10
+  \]
+
+  This means the program performs 10 floating-point operations for each byte of data it moves.
