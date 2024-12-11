@@ -1,0 +1,259 @@
+#+title: Day1
+#+property: header-args
+
+* Agenda
+- What is thread
+- What are Pthreads
+- Pthreads Overview
+- Why Pthreads
+- Designing Threaded Programs
+- Pthreads APIs
+- Creating and Terminating Threads
+* Terminologies to remember
+- threads
+- pthread
+- process
+- context
+- context switching
+- concurrency
+- parallelism
+- multithreading
+- cores
+- hypterthreading
+* Pthread Hello World
+** code
+#+name: pth1.c
+#+begin_src C :tangle pth1.c
+#include<stdio.h>
+#include<pthread.h>
+void* hello(){
+    printf("Hello, World\n");
+}
+int main(){
+    pthread_t t;
+    pthread_create(&t, NULL, hello, NULL);
+    pthread_join(t, NULL);
+    return 0;
+}
+#+end_src
+
+** compile
+#+name: compile pth1.c
+#+begin_src bash :results output :exports both
+gcc pth1.c -o pth1.out -lpthread
+#+end_src
+
+#+RESULTS: compile pth1.c
+
+** run
+#+name: run pth1.c
+#+begin_src bash :results output :exports both
+./pth1.out
+#+end_src
+
+#+RESULTS: run pth1.c
+: Hello, World
+
+* creating 2 threads
+** code
+#+begin_src C :tangle twoThreads.c
+#include<stdio.h>
+#include<unistd.h>
+#include<pthread.h>
+
+void* task1(){
+    printf("starting task1\n");
+    sleep(10);
+    printf("ending task1\n");
+}
+
+void* task2(){
+    printf("starting task2\n");
+    sleep(10);
+    printf("ending task2\n");
+}
+int main(){
+    pthread_t t1, t2;
+    pthread_create(&t1, NULL, task1, NULL);
+    pthread_create(&t2, NULL, task2, NULL);
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+    return 0;
+}
+#+end_src
+
+** compile
+#+begin_src bash :results output :exports both
+gcc twoThreads.c -lpthread
+#+end_src
+
+#+RESULTS:
+
+** run
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+#+RESULTS:
+: starting task1
+: starting task2
+: ending task1
+: ending task2
+* creating N number of threads
+** code
+#+begin_src C :tangle nthreads.c
+
+#include<stdio.h>
+#include<unistd.h>
+#include<pthread.h>
+#define N 10
+
+void* task(){
+    printf("starting task\n");
+    sleep(5);
+    printf("ending task\n");
+}
+int main(){
+    pthread_t t[N];
+    for(int i = 0; i < N; i++){
+        pthread_create(&t[i], NULL, task, NULL);
+    }
+
+    for(int i = 0; i < N; i++){
+        pthread_join(t[i], NULL);
+    }
+    return 0;
+}
+#+end_src
+
+** compile
+#+begin_src bash :results output :exports both
+gcc nthreads.c -o nthreads.out -lpthread
+#+end_src
+
+#+RESULTS:
+
+** run
+#+begin_src bash :results output :exports both
+./nthreads.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+starting task
+starting task
+starting task
+starting task
+starting task
+starting task
+starting task
+starting task
+starting task
+starting task
+ending task
+ending task
+ending task
+ending task
+ending task
+ending task
+ending task
+ending task
+ending task
+ending task
+#+end_example
+
+* Devide two tasks between equal number of threads
+** code
+#+begin_src C :tangle devideTaskBetweenThreads.c
+
+#include<stdio.h>
+#include<unistd.h>
+#include<pthread.h>
+#define N 20
+
+void* task1(){
+    printf("starting task1\n");
+    sleep(2);
+    printf("ending task1\n");
+}
+
+void* task2(){
+    printf("starting task2\n");
+    sleep(2);
+    printf("ending task2\n");
+
+}
+
+int main(){
+    pthread_t t1[N];
+    for(int i = 0; i < N; i++){
+        if(i < N/2)
+            pthread_create(&t1[i], NULL, task1, NULL);
+        else
+            pthread_create(&t1[i], NULL, task2, NULL);
+
+
+    }
+
+    for(int i = 0; i < N; i++){
+        pthread_join(t1[i], NULL);
+    }
+    return 0;
+}
+#+end_src
+
+
+** compile
+#+begin_src bash :results output :exports both
+gcc devideTaskBetweenThreads.c -lpthread
+#+end_src
+
+#+RESULTS:
+
+** run
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+starting task1
+starting task1
+starting task1
+starting task1
+starting task1
+starting task1
+starting task1
+starting task1
+starting task1
+starting task1
+starting task2
+starting task2
+starting task2
+starting task2
+starting task2
+starting task2
+starting task2
+starting task2
+starting task2
+starting task2
+ending task1
+ending task1
+ending task1
+ending task1
+ending task1
+ending task1
+ending task1
+ending task1
+ending task2
+ending task1
+ending task2
+ending task1
+ending task2
+ending task2
+ending task2
+ending task2
+ending task2
+ending task2
+ending task2
+ending task2
+#+end_example
