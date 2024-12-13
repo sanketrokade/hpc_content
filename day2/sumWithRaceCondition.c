@@ -2,16 +2,16 @@
 #include<stdlib.h>
 #include<unistd.h>
 #include<pthread.h>
-#define N 20
+#define N 20000
 
-int* arr;
+int sum = 0;
 void* hello(void* threadId){
     int tid = *(int*)threadId;
-    arr[tid] = tid;
+    sum+= tid;
     free(threadId);
 }
+
 int main(){
-    arr = malloc(sizeof(int) * N);
     pthread_t* t;
     t = malloc(sizeof(pthread_t) * N);
     for(int i = 0; i < N; i++){
@@ -23,7 +23,13 @@ int main(){
     for(int i = 0; i < N; i++)
         pthread_join(t[i], NULL);
     free(t);
-    for(int i = 0; i < N; i++) printf("%d ", arr[i]);
-    printf("\n");
+
+    printf("Sum = %d\n", sum);
+    if(sum + N == (N * (N + 1) / 2)){
+        printf("_____Passed_____\n");
+    }
+    else{
+        printf("_____Failed_____\n");
+    }
     return 0;
 }
