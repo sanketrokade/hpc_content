@@ -372,10 +372,6 @@ int main() {
 }
 #+end_src
 
-#+RESULTS: conditionalVariable.c
-: Sum using manual reduction: 4500001500000
-: Natural Number sum original: 4500001500000
-
 * pthread_barrier
 In this code only one thread (say 0) is allowed to create the whole data. After then we have to computer the result using all those available threads. Using barrier in this code will make sure that 0 will finish the data and go to the barrier then only all those threads will move to next line of the code. Means until 0 is doing the data every threads will have to wait for 0 to come to the barrier.
 #+name: pthread_barrier.c
@@ -482,7 +478,6 @@ void *init_array(void *arg) {
         arr[i] = i + 1;
     }
 
-    pthread_exit(NULL);
 }
 
 int main() {
@@ -517,6 +512,7 @@ int main() {
         printf("%d ", arr[i]);
     }
     printf("\n");
+    pthread_exit(0);
 
     return 0;
 }
@@ -526,7 +522,7 @@ int main() {
 #+RESULTS: detached thread1
 : Array initialization using detached threads...
 : Initialized array elements:
-: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100
+: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100
 
 #+RESULTS: detached thread
 : Array initialization using detached threads...
@@ -947,6 +943,3 @@ gcc task9.c -lpthread
 ./a.out > output2.txt
 echo "check output2.txt"
 #+end_src
-
-#+RESULTS:
-: check output2.txt

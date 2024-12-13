@@ -21,7 +21,6 @@ void *init_array(void *arg) {
         arr[i] = i + 1;
     }
 
-    pthread_exit(NULL);
 }
 
 int main() {
@@ -45,6 +44,7 @@ int main() {
     // Optional: Main thread can perform other tasks or wait
     // e.g., usleep(1000); // Wait for threads to complete if necessary
 
+    pthread_exit(0);
     printf("Array initialization using detached threads...\n");
 
     // Main thread continues execution
