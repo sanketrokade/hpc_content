@@ -13,7 +13,7 @@ void *hello(void* threadId){
     long localSum = 0;
     int chunk_size = N / T;
     int start = tid * chunk_size;
-    int end = (tid + 1) * chunk_size;
+    int end = start + chunk_size;
     if (tid == T - 1) {
         end = N;
     }
@@ -32,7 +32,7 @@ int main(){
     }
     pthread_t* t;
     pthread_mutex_init(&mutex, NULL);
-    t = malloc(sizeof(pthread_t) * N);
+    t = malloc(sizeof(pthread_t) * T);
 
     for(long i = 0; i < T; i++)
         pthread_create(&t[i], NULL, hello, (void*)i);
