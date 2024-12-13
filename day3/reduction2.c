@@ -38,6 +38,7 @@ int main(){
     for(int i = 0; i < T; i++){
         sum+= globalArraySum[i];
     }
+    for(int i = 0; i < T; i++) printf("local sum of thread %d = %ld\n", i, globalArraySum[i]);
     printf("Sum using manual reduction: %ld\n", sum);
     printf("Natural Number sum original: %ld\n", ((N * ((N + 1) * 1L)) / 2));
     free(t);

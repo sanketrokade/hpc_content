@@ -59,10 +59,6 @@ int main(){
 }
 #+end_src
 
-#+RESULTS: reduction1.c
-: Sum using manual reduction: 12500002500000
-: Natural Number sum original: 12500002500000
-
 * Reduction Alter
 #+name: reduction2.c
 #+begin_src C :tangle reduction2.c :results output :exports both
@@ -106,6 +102,7 @@ int main(){
     for(int i = 0; i < T; i++){
         sum+= globalArraySum[i];
     }
+    for(int i = 0; i < T; i++) printf("local sum of thread %d = %ld\n", i, globalArraySum[i]);
     printf("Sum using manual reduction: %ld\n", sum);
     printf("Natural Number sum original: %ld\n", ((N * ((N + 1) * 1L)) / 2));
     free(t);
@@ -114,7 +111,7 @@ int main(){
 #+end_src
 
 #+RESULTS: reduction2.c
-: Sum using manual reduction: 12500002500000
+: local sum of thread 0 = 48828281250local sum of thread 1 = 146484531250local sum of thread 2 = 244140781250local sum of thread 3 = 341797031250local sum of thread 4 = 439453281250local sum of thread 5 = 537109531250local sum of thread 6 = 634765781250local sum of thread 7 = 732422031250local sum of thread 8 = 830078281250local sum of thread 9 = 927734531250local sum of thread 10 = 1025390781250local sum of thread 11 = 1123047031250local sum of thread 12 = 1220703281250local sum of thread 13 = 1318359531250local sum of thread 14 = 1416015781250local sum of thread 15 = 1513672031250Sum using manual reduction: 12500002500000
 : Natural Number sum original: 12500002500000
 
 * Return from function
@@ -634,3 +631,82 @@ echo "Check output.txt"
 * Problem
 Create an array of size N. Initialialize that array with some elements. You have to create T number of threads and then you have to devide the data between those number of threads.
 After division you have to calculate sum of all the elements of the array by those threads.
+
+* Return from function demo2
+#+name: functionReturn5.c
+#+begin_src C :tangle functionReturn5.c :results output :exports both
+#include<stdio.h>
+#include<stdlib.h>
+#include<pthread.h>
+#define T 7
+
+void* hello(){
+    long* localValue = malloc(sizeof(long));
+    *localValue = 123;
+    return (void*)*localValue;
+}
+
+int main(){
+    pthread_t* t;
+    t = malloc(sizeof(pthread_t) * T);
+
+    long localValue;
+    for(long i = 0; i < T; i++)
+        pthread_create(&t[i], NULL, hello, NULL);
+    for(long i = 0; i < T; i++){
+        pthread_join(t[i], (void**)&localValue);
+        printf("Local Value from each thread = %ld\n", localValue);
+    }
+    free(t);
+    return 0;
+}
+#+end_src
+
+#+RESULTS: functionReturn5.c
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+
+* Return from function demo3
+#+name: functionReturn4.c
+#+begin_src C :tangle functionReturn4.c :results output :exports both
+#include<stdio.h>
+#include<stdlib.h>
+#include<pthread.h>
+#define T 7
+
+void* hello(){
+    int* a;
+    a = (int*) malloc(sizeof(int));
+    *a = 5;
+    return (void*)a;
+}
+
+int main(){
+    pthread_t* t;
+    t = malloc(sizeof(pthread_t) * T);
+
+    int* b;
+    for(long i = 0; i < T; i++)
+        pthread_create(&t[i], NULL, hello, NULL);
+    for(long i = 0; i < T; i++){
+        pthread_join(t[i], (void**)&b);
+        printf("Local Value from each thread = %d\n", *b);
+    }
+    free(t);
+    return 0;
+}
+#+end_src
+
+#+RESULTS: functionReturn5.c
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
+: Local Value from each thread = 123
