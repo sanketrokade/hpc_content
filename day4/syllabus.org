@@ -1,0 +1,60 @@
+#+title: Syllabus
+
+* OpenMP Syllabus
+ - Introduction to OpenMP
+ - Need for OpenMP
+ - OpenMP Programming Model
+ - OpenMP Programs
+ - OpenMP Directives
+ - Clauses
+ - Creating Threads using OpenMP
+ - Environment Variables
+ - Data Scopes in OpenMP
+ - OpenMP Constructs
+ - Work Sharing Constructs
+ - Single
+ - Master
+ - Critical
+ - Atomics
+ - Sections
+ - Barrier
+ - Reduction Operation
+ - OpenMP Scheduling
+ - OpenMP Tasks
+ - OpenMP Offload
+ - Case Studies (Algorithms and Parallelization Approaches)
+ - Matrix Operations
+ - Matrix-Matrix Multiplication
+
+* MPI Syllabus
+ - What is MPI
+ - Basics of MPI
+ - Process vs Threads
+ - Distributed Memory Programming Model
+ - Why MPI
+ - MPI Communication
+ - Point-to-Point Communication
+ - Blocking and Non-Blocking Calls
+ - Synchronous and Asynchronous Calls
+ - MPI P2P Communication Routines
+ - Data Synchronization
+ - Data Movement
+ - MPI Collective Communication
+ - MPI Collective Communication Routines
+ - Collective Computation
+ - Reduction
+ - Advanced MPI
+ - Derived Data Types
+ - Special Type Constructors
+ - Type Matching
+ - Packing/Unpacking
+ - Process Groups
+ - Communicators
+ - Creating Communicators
+ - Task Parallelism using Groups and Communicators
+ - Virtual Topologies
+ - MPI I/O
+ - MPI Threads
+ - Case Studies (Algorithms and Parallelization Approaches)
+ - Matrix Operations
+ - Matrix-Matrix Multiplication
