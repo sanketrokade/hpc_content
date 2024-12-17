@@ -1,0 +1,433 @@
+#+title: Day5
+
+* OpenMP Directives
+- #pragma omp parallel: Defines a parallel region.
+- #pragma omp for: Distributes loop iterations among threads.
+Example:
+#+begin_src c
+#pragma omp parallel for
+for (int i = 0; i < n; i++) {
+    a[i] = b[i] + c[i];
+}
+#+end_src
+
+* OpenMP Clauses
+- private(var): Each thread has its own copy of the variable.
+- shared(var): The variable is shared among all threads.
+- reduction(op:var): Combines values from all threads using the specified operation.
+Example:
+#+begin_src c
+#pragma omp parallel for reduction(+:sum)
+for (int i = 0; i < n; i++) {
+    sum += a[i];
+}
+#+end_src
+
+* Environment Variables
+- OMP_NUM_THREADS: Sets the number of threads.
+- OMP_DYNAMIC: Enables or disables dynamic adjustment of threads.
+- OMP_SCHEDULE: Controls the schedule type for loops (e.g., static, dynamic).
+Example:
+#+begin_src bash
+export OMP_NUM_THREADS=4
+export OMP_SCHEDULE="dynamic"
+#+end_src
+
+* OpenMP Directives and Clauses
+** OpenMP Directives
+OpenMP directives are instructions added to the code to enable parallel execution. They are identified by the `#pragma omp` keyword and guide the compiler to parallelize sections of the program.
+
+#+begin_example
+#pragma omp directive [clauses]
+#+end_example
+
+** Common OpenMP Directives
+- #pragma omp parallel
+  Defines a parallel region where multiple threads execute the code block.
+
+- #pragma omp for
+  Distributes iterations of a loop among threads for parallel execution.
+
+- #pragma omp sections
+  Divides the program into sections where different threads execute different blocks.
+
+- #pragma omp single
+  Ensures a block of code is executed by only one thread.
+
+- #pragma omp critical
+  Protects a block of code so that only one thread executes it at a time.
+
+** Example of OpenMP Directives
+#+begin_src c
+#include <stdio.h>
+#include <omp.h>
+
+int main() {
+    #pragma omp parallel
+    {
+        printf("Hello from thread %d\n", omp_get_thread_num());
+    }
+    return 0;
+}
+#+end_src
+
+In this example, the `#pragma omp parallel` directive creates a parallel region, and each thread prints its thread ID.
+
+---
+
+* Clauses in OpenMP
+Clauses modify the behavior of OpenMP directives. They are used to control data sharing, schedule loops, and synchronize operations.
+
+** Common OpenMP Clauses
+- private(variable):
+  Each thread has its own private copy of the variable.
+
+- shared(variable):
+  The variable is shared among all threads.
+
+- reduction(operator:variable):
+  Performs a reduction operation (e.g., sum, product) across all threads.
+
+- firstprivate(variable):
+  Each thread gets a private copy of the variable, initialized with the value from the master thread.
+
+- schedule(type[, chunk]):
+  Specifies how loop iterations are divided among threads.
+
+* Data Scopes in OpenMP
+OpenMP allows control over the visibility and scope of variables in a parallel region.
+
+** Types of Data Scopes
+- **shared**:
+  The variable is shared among all threads.
+
+- **private**:
+  Each thread has its own private copy of the variable.
+
+- **firstprivate**:
+  Each thread gets a private copy of the variable, initialized with the master thread's value.
+
+- **lastprivate**:
+  Updates the value of a private variable back to the shared variable after the loop ends.
+
+** Example: Data Scopes
+#+begin_src c
+#include <omp.h>
+#include <stdio.h>
+
+int main() {
+    int x = 10;
+
+    #pragma omp parallel private(x)
+    {
+        x = omp_get_thread_num();
+        printf("Thread %d, x = %d\n", omp_get_thread_num(), x);
+    }
+    printf("Outside parallel region, x = %d\n", x);
+    return 0;
+}
+#+end_src
+
+---
+
+* OpenMP Constructs
+OpenMP constructs are building blocks for writing parallel code.
+
+** Common Constructs
+- Parallel Region:
+  - `#pragma omp parallel`: Creates a team of threads.
+
+- Work Sharing Constructs:
+  - `#pragma omp for`: Distributes loop iterations.
+  - `#pragma omp sections`: Divides tasks into separate code blocks.
+  - `#pragma omp single`: Ensures a block is executed by one thread.
+  - `#pragma omp master`: Only the master thread executes the block.
+  - `#pragma omp critical`: Protects critical sections of code.
+
+** Example: Work Sharing Constructs
+#+begin_src c
+#include <stdio.h>
+#include <omp.h>
+
+int main() {
+    #pragma omp parallel
+    {
+        #pragma omp single
+        printf("Only one thread executes this.\n");
+
+        #pragma omp for
+        for (int i = 0; i < 8; i++) {
+            printf("Thread %d, iteration %d\n", omp_get_thread_num(), i);
+        }
+    }
+    return 0;
+}
+#+end_src
+
+* private
+#+begin_src C :tangle private.c
+#include<stdio.h>
+#include<omp.h>
+int main(){
+    int a = 5;
+    #pragma omp parallel private(a) num_threads(4)
+    {
+        printf("Inside: a = %d by tid %d\n", a, omp_get_thread_num());
+    }
+    printf("After: a = %d\n", a);
+    return 0;
+}
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+gcc test.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: Inside: a = 30915 by tid 3
+: Inside: a = 30915 by tid 1
+: Inside: a = 30915 by tid 0
+: Inside: a = 30915 by tid 2
+: After: a = 5
+
+* firstprivate
+#+begin_src C :tangle firstprivate.c
+#include<stdio.h>
+#include<omp.h>
+int main(){
+    int a = 5;
+    #pragma omp parallel firstprivate(a) num_threads(4)
+    {
+        printf("Inside: a = %d by tid %d : %p\n", a, omp_get_thread_num(), &a);
+    }
+    printf("After: a = %d : %p\n", a, &a);
+    return 0;
+}
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+gcc firstprivate.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: Inside: a = 5 by tid 3 : 0x7c6ee618ede4
+: Inside: a = 5 by tid 2 : 0x7c6ee6b8ede4
+: Inside: a = 5 by tid 1 : 0x7c6ee758ede4
+: Inside: a = 5 by tid 0 : 0x7ffda6d1ee54
+: After: a = 5 : 0x7ffda6d1eea0
+
+* default
+#+begin_src C :tangle default.c
+#include<stdio.h>
+#include<omp.h>
+int main(){
+    int a = 5;
+    int b = 234;
+    #pragma omp parallel default(none) shared(a) private(b) num_threads(4)
+    {
+        printf("Inside: a = %d by tid %d : %p\n", a, omp_get_thread_num(), &a);
+        b = 234;
+    }
+    printf("After: a = %d : %p\n", a, &a);
+    return 0;
+}
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+gcc default.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: Inside: a = 5 by tid 3 : 0x7c6ee618ede4
+: Inside: a = 5 by tid 2 : 0x7c6ee6b8ede4
+: Inside: a = 5 by tid 1 : 0x7c6ee758ede4
+: Inside: a = 5 by tid 0 : 0x7ffda6d1ee54
+: After: a = 5 : 0x7ffda6d1eea0
+
+* Test1
+#+begin_src C :tangle private1.c
+#include<stdio.h>
+#include<omp.h>
+int main(){
+    int a = 5;
+    #pragma omp parallel private(a) num_threads(10)
+    {
+        int tid = omp_get_thread_num();
+        if(tid == 3) a = 7;
+        printf("Inside: a = %d by tid %d\n", a, tid);
+    }
+    printf("After: a = %d\n", a);
+    return 0;
+}
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+gcc test1.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Inside: a = -1607874895 by tid 9
+Inside: a = -1607874895 by tid 4
+Inside: a = -1607874895 by tid 5
+Inside: a = -1607874895 by tid 7
+Inside: a = -1607874895 by tid 6
+Inside: a = -1607874895 by tid 1
+Inside: a = 7 by tid 3
+Inside: a = -1607874895 by tid 8
+Inside: a = -1604882432 by tid 0
+Inside: a = -1607874895 by tid 2
+After: a = 5
+#+end_example
+
+* Task1
+Create an array and print the elements of that array inside parallel region. Devide your data between number of threads
+#+begin_src C :tangle task1.c
+#include<stdio.h>
+#include<omp.h>
+#define N 100000
+#define T 10
+int main(){
+    int a[N];
+    for(int i = 0; i < N; i++) a[i] = i + 1;
+
+    #pragma omp parallel num_threads(T)
+    {
+        for(int i = 0; i < N; i++){
+            printf("%d ", a[i]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc task1.c -fopenmp -o task1.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./task1.out > output1.txt
+echo "check output1.txt"
+#+end_src
+
+#+RESULTS:
+: check output1.txt
+
+* solution task1
+Create an array and print the elements of that array inside parallel region.
+#+begin_src C :tangle task1_sol.c
+#include<stdio.h>
+#include<omp.h>
+#define N 100000
+#define T 10
+int main(){
+    int a[N];
+    for(int i = 0; i < N; i++) a[i] = i + 1;
+
+    int start, end;
+    int chunksize = N / T;
+    #pragma omp parallel shared(chunksize) private(start, end) num_threads(T)
+    {
+        int tid = omp_get_thread_num();
+        start = tid * chunksize;
+        end = start + chunksize;
+        if(tid == T - 1) end = N;
+        for(int i = start; i < end; i++){
+            printf("%d ", a[i]);
+        }
+    }
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc task1_sol.c -fopenmp -o task1_sol.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./task1_sol.out > output2.txt
+echo "check output2.txt"
+#+end_src
+
+#+RESULTS:
+: check output2.txt
+
+* Task2
+#+begin_src C :tangle task2.c
+#include<stdio.h>
+#include<omp.h>
+#define N 21
+#define T 10
+int main(){
+    int a[N];
+    for(int i = 0; i < N; i++) a[i] = i + 1;
+
+    #pragma omp parallel num_threads(T)
+    {
+        #pragma omp for
+        for(int i = 0; i < N; i++){
+            printf("%d ", a[i]);
+        }
+    }
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc task2.c -fopenmp -o task2.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./task2.out | wc -w
+./task2.out > output3.txt
+echo "check output3.txt"
+#+end_src
+
+#+RESULTS:
+: 21
+: check output3.txt
+
+* Task3
+Write a program to calculate sum of natural numbers.
