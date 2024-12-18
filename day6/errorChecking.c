@@ -19,7 +19,9 @@ int main(){
         cs[i] = 0;
     }
 
+    #ifdef _OPENMP
     omp_set_num_threads(T);
+    #endif
 
     #pragma omp parallel for
     for(int i = 0; i < N; i++){
