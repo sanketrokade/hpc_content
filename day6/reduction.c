@@ -4,14 +4,10 @@
 #define T 13
 int main(){
     long long sum = 0;
-    #pragma omp parallel num_threads(T)
-    {
-        #pragma omp for reduction(+ : sum)
-        for(int i = 0; i < N; i++){
-            sum += i + 1;
-        }
+    #pragma omp parallel for reduction(+ : sum) num_threads(T)
+    for(int i = 0; i < N; i++){
+        sum += i + 1;
     }
-
 
     printf("Calculated sum = %lld\n", sum);
     long long expectedSum = (N * ((N + 1) * 1L) / 2);
