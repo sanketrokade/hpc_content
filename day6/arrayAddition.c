@@ -10,7 +10,6 @@ int main(){
     b = (int *) malloc(sizeof(int) * N);
     c = (int *) malloc(sizeof(int) * N);
     cs = (int *) malloc(sizeof(int) * N);
-    //Data creation
     for(int i = 0; i < N; i++){
         a[i] = i + 1;
         b[i] = i + 1;
