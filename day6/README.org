@@ -1,5 +1,13 @@
 #+title: Day6
 
+* Agenda
+- Manual Reduction
+- Reduction
+- Array Addition
+- Measuring time
+- Error checking
+- Dealing with larger data in a parallel program
+
 * Perform manual reduction on your data
 #+begin_src C :tangle manualReduction.c
 #include<stdio.h>
