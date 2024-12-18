@@ -40,5 +40,10 @@ int main(){
     printf("\nSerial time = %lf\n", serialTime);
     printf("\nParallel time = %lf\n", parallelTime);
 
+    free(a);
+    free(b);
+    free(c);
+    free(cs);
+
     return 0;
 }
