@@ -1,14 +1,14 @@
 #include<stdio.h>
 #include<omp.h>
-#define N 100000
+#define N 1000000000
 #define T 13
 int main(){
     int chunksize = N / T;
-    int sum[T];
+    long long sum[T];
     #pragma omp parallel num_threads(T)
     {
         int tid = omp_get_thread_num();
-        int localsum = 0;
+        long long localsum = 0;
         int start = tid * chunksize;
         int end = start + chunksize;
         if(tid == T - 1) end = N;
@@ -18,11 +18,13 @@ int main(){
         sum[tid] = localsum;
     }
 
-    int totalSum = 0;
+    long long totalSum = 0;
     for(int i = 0; i < T; i++) totalSum += sum[i];
 
-    printf("Total sum = %d\n", totalSum);
-    if(totalSum == (N * (N + 1) / 2)){
+    printf("Calculated sum = %lld\n", totalSum);
+    long long expectedSum = (N * ((N + 1) * 1L) / 2);
+    printf("Expected sum = %lld\n", expectedSum);
+    if(totalSum == expectedSum){
         printf("_____Passed_____\n");
     }
     else printf("_____Failed_____\n");
