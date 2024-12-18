@@ -18,7 +18,6 @@ int main(){
         cs[i] = 0;
     }
 
-    //parallel array addition
     double startTime = omp_get_wtime();
     #pragma omp parallel for num_threads(T)
     for(int i = 0; i < N; i++){
@@ -27,7 +26,6 @@ int main(){
     double endTime = omp_get_wtime();
     double parallelTime = endTime - startTime;
 
-    //Serial array addition
     startTime = omp_get_wtime();
     for(int i = 0; i < N; i++){
         cs[i] = a[i] + b[i];
