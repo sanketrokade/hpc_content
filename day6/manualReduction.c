@@ -1,6 +1,6 @@
 #include<stdio.h>
 #include<omp.h>
-#define N 10000
+#define N 100000
 #define T 13
 int main(){
     int chunksize = N / T;
@@ -22,6 +22,10 @@ int main(){
     for(int i = 0; i < T; i++) totalSum += sum[i];
 
     printf("Total sum = %d\n", totalSum);
+    if(totalSum == (N * (N + 1) / 2)){
+        printf("_____Passed_____\n");
+    }
+    else printf("_____Failed_____\n");
 
     return 0;
 }
