@@ -1,0 +1,565 @@
+#+title: Day7
+
+* Lastprivate
+#+begin_src C :tangle lastprivate.c
+#include<stdio.h>
+#include<omp.h>
+#define T 10
+#define N 20
+int main(){
+    int a = 5;
+    #pragma omp parallel for lastprivate(a) num_threads(T)
+    for(int i = 0; i < N; i++){
+        if(i == N - 1){
+            continue;
+        }
+        a = i;
+        printf("thread %d is changing a to %d\n", omp_get_thread_num(), a);
+    }
+    printf("a = %d\n", a);
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc lastprivate.c -o lastprivate.out -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./lastprivate.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+thread 4 is changing a to 8
+thread 1 is changing a to 2
+thread 7 is changing a to 14
+thread 4 is changing a to 9
+thread 1 is changing a to 3
+thread 5 is changing a to 10
+thread 7 is changing a to 15
+thread 5 is changing a to 11
+thread 3 is changing a to 6
+thread 3 is changing a to 7
+thread 6 is changing a to 12
+thread 6 is changing a to 13
+thread 0 is changing a to 0
+thread 0 is changing a to 1
+thread 9 is changing a to 18
+thread 2 is changing a to 4
+thread 8 is changing a to 16
+thread 8 is changing a to 17
+thread 2 is changing a to 5
+a = 18
+#+end_example
+
+* Lastprivate2
+#+begin_src C :tangle lastprivate2.c
+#include<stdio.h>
+#include<omp.h>
+#define T 5
+#define N 20
+int main(){
+    int a = 5;
+    #pragma omp parallel for lastprivate(a) num_threads(T)
+    for(int i = 0; i < N; i++){
+        if(i > 16){
+            continue;
+        }
+        a = i;
+        printf("thread %d is changing a to %d\n", omp_get_thread_num(), a);
+    }
+    printf("a = %d\n", a);
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc lastprivate2.c -o lastprivate2.out -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./lastprivate2.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+thread 4 is changing a to 16
+thread 0 is changing a to 0
+thread 0 is changing a to 1
+thread 0 is changing a to 2
+thread 0 is changing a to 3
+thread 3 is changing a to 12
+thread 3 is changing a to 13
+thread 3 is changing a to 14
+thread 3 is changing a to 15
+thread 1 is changing a to 4
+thread 1 is changing a to 5
+thread 1 is changing a to 6
+thread 1 is changing a to 7
+thread 2 is changing a to 8
+thread 2 is changing a to 9
+thread 2 is changing a to 10
+thread 2 is changing a to 11
+a = 16
+#+end_example
+
+* Critical sections
+#+begin_src C :tangle criticalSection.c
+#include<stdio.h>
+#include<omp.h>
+#include<stdlib.h>
+#define N 10000
+#define T 10
+int main(){
+    int sum = 0;
+    #pragma omp parallel for num_threads(10)
+    for(int i = 0; i < N; i++){
+        #pragma omp critical
+        {
+            sum+= i + 1;
+        }
+    }
+    printf("Sum = %d\n", sum);
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc criticalSection.c -fopenmp -o criticalSection.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./criticalSection.out
+#+end_src
+
+#+RESULTS:
+: Sum = 50005000
+
+* You can use critical section for manual reduction
+#+begin_src C :tangle criticalSection2.c
+#include<stdio.h>
+#include<omp.h>
+#define N 1000000000
+#define T 13
+int main(){
+    int chunksize = N / T;
+    long long sum = 0;
+    #pragma omp parallel num_threads(T)
+    {
+        int tid = omp_get_thread_num();
+        long long localsum = 0;
+        int start = tid * chunksize;
+        int end = start + chunksize;
+        if(tid == T - 1) end = N;
+        for(int i = start; i < end; i++){
+            localsum += i + 1;
+        }
+        #pragma omp critical
+        {
+            sum += localsum;
+        }
+    }
+
+    printf("Calculated sum = %lld\n", sum);
+    long long expectedSum = (N * ((N + 1) * 1L) / 2);
+    printf("Expected sum = %lld\n", expectedSum);
+    if(sum == expectedSum){
+        printf("_____Passed_____\n");
+    }
+    else printf("_____Failed_____\n");
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc criticalSection2.c -fopenmp -o criticalSection2.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./criticalSection2.out
+#+end_src
+
+#+RESULTS:
+: Calculated sum = 500000000500000000
+: Expected sum = 500000000500000000
+: _____Passed_____
+
+* Critical Section usage
+#+begin_src C :tangle criticalSection3.c
+#include<stdio.h>
+#include<omp.h>
+#define N 1000000000
+#define T 13
+int main(){
+    long long sum = 0;
+    #pragma omp parallel num_threads(T)
+    {
+        int tid = omp_get_thread_num();
+        long long localsum = 0;
+        #pragma omp for
+        for(int i = 0; i < N; i++){
+            localsum += i + 1;
+        }
+        #pragma omp critical
+        {
+            sum+= localsum;
+        }
+    }
+
+    printf("Calculated sum = %lld\n", sum);
+    long long expectedSum = (N * ((N + 1) * 1L) / 2);
+    printf("Expected sum = %lld\n", expectedSum);
+    if(sum == expectedSum){
+        printf("_____Passed_____\n");
+    }
+    else printf("_____Failed_____\n");
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc criticalSection3.c -fopenmp -o criticalSection3.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./criticalSection3.out
+#+end_src
+
+#+RESULTS:
+: Calculated sum = 500000000500000000
+: Expected sum = 500000000500000000
+: _____Passed_____
+
+* Master
+#+begin_src C :tangle master.c
+#include<stdio.h>
+#include<omp.h>
+#include<stdlib.h>
+#define N 10000
+#define T 10
+int main(){
+    #pragma omp parallel num_threads(T)
+    {
+        #pragma omp master
+        {
+            printf("%d have an extra statement to execute\n", omp_get_thread_num());
+        }
+        printf("Hi, I am thread %d\n", omp_get_thread_num());
+    }
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc master.c -fopenmp -o master.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./master.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Hi, I am thread 2
+Hi, I am thread 6
+0 have an extra statement to execute
+Hi, I am thread 0
+Hi, I am thread 8
+Hi, I am thread 3
+Hi, I am thread 1
+Hi, I am thread 4
+Hi, I am thread 5
+Hi, I am thread 7
+Hi, I am thread 9
+#+end_example
+
+* Single
+#+begin_src C :tangle single.c
+#include<stdio.h>
+#include<omp.h>
+#include<stdlib.h>
+#define N 10000
+#define T 10
+int main(){
+    #pragma omp parallel num_threads(T)
+    {
+        #pragma omp single
+        {
+            printf("%d have an extra statement to execute\n", omp_get_thread_num());
+        }
+        printf("Hi, I am thread %d\n", omp_get_thread_num());
+    }
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc single.c -fopenmp -o single.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./single.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+4 have an extra statement to execute
+Hi, I am thread 9
+Hi, I am thread 4
+Hi, I am thread 0
+Hi, I am thread 3
+Hi, I am thread 5
+Hi, I am thread 2
+Hi, I am thread 6
+Hi, I am thread 7
+Hi, I am thread 8
+Hi, I am thread 1
+#+end_example
+
+* Data creation inside parallel region using single
+#+begin_src C :tangle dc1.c
+#include<stdio.h>
+#include<omp.h>
+#define N 1000000
+#define T 13
+int main(){
+    long long sum = 0;
+    long long a[N];
+    #pragma omp parallel  num_threads(T)
+    {
+        #pragma omp single
+        {
+            for(int i = 0; i < N; i++) a[i] = i + 1;
+        }
+        #pragma omp for reduction( + : sum )
+        for(int i = 0; i < N; i++){
+            sum += a[i];
+        }
+    }
+
+    printf("Calculated sum = %lld\n", sum);
+    long long expectedSum = (N * ((N + 1) * 1L) / 2);
+    printf("Expected sum = %lld\n", expectedSum);
+    if(sum == expectedSum){
+        printf("_____Passed_____\n");
+    }
+    else printf("_____Failed_____\n");
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc dc1.c -fopenmp -o dc1.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./dc1.out
+#+end_src
+
+#+RESULTS:
+: Calculated sum = -8991545208627516298
+: Expected sum = 500000500000
+: _____Failed_____
+
+* Barrier
+#+begin_src C :tangle barrier.c
+#include<stdio.h>
+#include<unistd.h>
+#include<omp.h>
+#define T 5
+int main(){
+    #pragma omp parallel num_threads(T)
+    {
+        printf("Before barrier\n");
+        #pragma omp barrier
+        printf("After barrier\n");
+    }
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc barrier.c -o barrier.out -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./barrier.out
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Before barrier
+Before barrier
+Before barrier
+Before barrier
+Before barrier
+After barrier
+After barrier
+After barrier
+After barrier
+After barrier
+#+end_example
+
+* Data creation inside parallel region using master
+#+begin_src C :tangle dc2.c
+#include<stdio.h>
+#include<omp.h>
+#define N 1000000
+#define T 13
+int main(){
+    long long sum = 0;
+    long long a[N];
+    #pragma omp parallel  num_threads(T)
+    {
+        #pragma omp master
+        {
+            for(int i = 0; i < N; i++) a[i] = i + 1;
+        }
+        #pragma omp barrier
+        #pragma omp for reduction( + : sum )
+        for(int i = 0; i < N; i++){
+            sum += a[i];
+        }
+    }
+
+    printf("Calculated sum = %lld\n", sum);
+    long long expectedSum = (N * ((N + 1) * 1L) / 2);
+    printf("Expected sum = %lld\n", expectedSum);
+    if(sum == expectedSum){
+        printf("_____Passed_____\n");
+    }
+    else printf("_____Failed_____\n");
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc dc2.c -fopenmp -o dc2.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./dc2.out
+#+end_src
+
+#+RESULTS:
+: Calculated sum = 500000500000
+: Expected sum = 500000500000
+: _____Passed_____
+
+* Barrier data creation
+#+begin_src C :tangle dc3.c
+#include<stdio.h>
+#include<omp.h>
+#include<stdlib.h>
+#define N 1000000
+#define T 13
+
+int main(){
+    long long *a, sum=0;
+    a= malloc(sizeof(long long) * N);
+
+    #pragma omp parallel num_threads(T)
+    {
+        #pragma omp master
+        {
+            for(int i=0; i<N; i++){
+                a[i] = i+1;
+            }
+        }
+        #pragma omp for reduction(+:sum)
+        for(int i=0; i<N; i++){
+            sum += a[i];
+        }
+    }
+    printf("sum = %lld\n", sum);
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc dc3.c -fopenmp -o dc3.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./dc3.out
+#+end_src
+
+#+RESULTS:
+: sum = 2958689350
+
+* Data creation parallelly
+#+begin_src C :tangle dc4.c
+#include<stdio.h>
+#include<omp.h>
+#define N 1000000
+#define T 13
+int main(){
+    long long sum = 0;
+    long long a[N];
+    #pragma omp parallel  num_threads(T)
+    {
+        #pragma omp for
+        for(int i = 0; i < N; i++){
+            a[i] = i + 1;
+        }
+        #pragma omp for reduction( + : sum )
+        for(int i = 0; i < N; i++){
+            sum += a[i];
+        }
+    }
+
+    printf("Calculated sum = %lld\n", sum);
+    long long expectedSum = (N * ((N + 1) * 1L) / 2);
+    printf("Expected sum = %lld\n", expectedSum);
+    if(sum == expectedSum){
+        printf("_____Passed_____\n");
+    }
+    else printf("_____Failed_____\n");
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc dc4.c -fopenmp -o dc4.out
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./dc4.out
+#+end_src
+
+#+RESULTS:
+: Calculated sum = 500000500000
+: Expected sum = 500000500000
+: _____Passed_____
