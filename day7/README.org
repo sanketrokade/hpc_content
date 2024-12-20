@@ -1,5 +1,12 @@
 #+title: Day7
 
+* Agenda
+- lastprivate
+- critical section
+- omp single
+- omp master
+- omp barrier
+- parallel data creation
 * Lastprivate
 #+begin_src C :tangle lastprivate.c
 #include<stdio.h>
