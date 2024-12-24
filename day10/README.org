@@ -1,0 +1,342 @@
+#+title: Day10
+
+* Scripts
+** compile script
+#+begin_src bash :tangle compile.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cb
+#spack load openmpi/c7kvqyq
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+inputFile=$1
+outputFile="${1%.*}.out"      # extract the name of the file without extension and adding extension .out
+#cmd=`mpicc $inputFile -o $outputFile`
+cmd="mpicc $inputFile -o $outputFile"     # running code using MPI
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+$cmd
+
+echo "Compilation successful. Check at $outputFile"
+echo "------------------------------------------------------------------"
+#+end_src
+
+** run script
+#+begin_src bash :tangle run.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cbc
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+cmd="mpirun -np $2 $1"
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+echo "##################################################################"
+echo "##########                    OUTPUT                    ##########"
+echo "##################################################################"
+echo
+mpirun -np $2 $1
+echo
+echo "##################################################################"
+echo "##########                     DONE                     ##########"
+echo "##################################################################"
+#+end_src
+
+* Introduction to MPI
+MPI (Message Passing Interface) is a standardized library for message-passing in parallel programming. It allows multiple processes to communicate and coordinate tasks across distributed-memory systems. MPI is widely used for high-performance computing applications.
+
+- **Key Highlights**:
+  - Enables communication between processes running on different nodes or cores.
+  - Portable across various hardware and software platforms.
+  - Scalable to thousands or even millions of processes.
+  - Provides fine-grained control over communication patterns.
+
+* Basics of MPI
+- **Processes**:
+  - Each instance of an MPI program is a separate process.
+  - Processes do not share memory and communicate explicitly via messages.
+
+- **Communicator**:
+  - A group of processes that can communicate with each other.
+  - The default communicator `MPI_COMM_WORLD` includes all processes.
+
+- **Rank**:
+  - Each process in a communicator is assigned a unique **rank** (an integer).
+  - Ranks are used to identify and address processes.
+
+- **Execution Model**:
+  - All processes start execution from the same program code.
+  - They can follow different execution paths based on their rank.
+
+---
+
+* Processes vs Threads
+| **Feature**              | **Processes**                     | **Threads**                           |
+|---------------------------|------------------------------------|---------------------------------------|
+| Memory                    | Separate memory for each process. | Shared memory within the process.     |
+| Communication             | Message passing (explicit).       | Shared variables (implicit).          |
+| Scalability               | Highly scalable.                  | Limited by shared memory capacity.    |
+| Example                   | MPI programs.                     | OpenMP programs.                      |
+
+---
+
+* Distributed Memory Programming Model
+- In distributed memory systems, processes execute on separate nodes, each with its own private memory.
+- Communication between processes occurs explicitly using message-passing.
+
+- **Key Characteristics**:
+  - No shared memory: Processes cannot directly access each other’s data.
+  - Explicit communication: Processes exchange data via messages.
+  - Suitable for large-scale distributed systems like clusters and supercomputers.
+
+---
+
+* Distributed vs Shared Memory
+| **Feature**              | **Shared Memory**                      | **Distributed Memory**                |
+|---------------------------|----------------------------------------|---------------------------------------|
+| **Memory Access**         | All threads share a global memory.     | Each process has private memory.      |
+| **Communication**         | Implicit via shared variables.         | Explicit via message passing.         |
+| **Programming Models**    | OpenMP, Pthreads.                      | MPI, Sockets.                         |
+| **Scalability**           | Limited by shared memory size.         | Highly scalable for large systems.    |
+
+---
+
+* Why MPI?
+1. **Scalability**:
+   - Handles thousands of processes efficiently on distributed systems.
+
+2. **Portability**:
+   - Works on diverse hardware architectures and operating systems.
+
+3. **Flexibility**:
+   - Provides control over data distribution, load balancing, and communication.
+
+4. **Efficiency**:
+   - Optimized for high-performance computing on clusters and supercomputers.
+
+* Real-World Applications of MPI
+- Climate modeling.
+- Computational fluid dynamics.
+- Genome sequencing.
+- Financial simulations.
+
+---
+
+* How MPI Works
+1. **Initialization**:
+   - The MPI environment is set up using `MPI_Init`.
+   - All processes start executing from the same program.
+
+2. **Communication**:
+   - Processes exchange data via point-to-point or collective communication.
+   - Use communicators (e.g., `MPI_COMM_WORLD`) to define the scope of communication.
+
+3. **Synchronization**:
+   - Processes can synchronize using barriers or other mechanisms.
+
+4. **Finalization**:
+   - The MPI environment is cleaned up using `MPI_Finalize`.
+
+---
+
+* MPI Communications
+- **Point-to-Point Communication**:
+  - Direct communication between two specific processes.
+  - Example Functions:
+    - `MPI_Send`: Sends a message.
+    - `MPI_Recv`: Receives a message.
+
+- **Collective Communication**:
+  - Involves all processes in a communicator.
+  - Example Functions:
+    - `MPI_Bcast`: Broadcasts a message to all processes.
+    - `MPI_Reduce`: Combines data from all processes.
+
+---
+
+* Downloading and Installing MPI
+To get started with MPI, you need to download and install an MPI implementation. Here are general steps for downloading and installing Open MPI:
+1. **Download Open MPI**:
+   Visit the [Open MPI website](https://www.open-mpi.org) and download the latest version of Open MPI.
+2. **Extract the tarball**:
+   #+BEGIN_SRC sh
+   tar -xvf openmpi-x.y.z.tar.gz
+   cd openmpi-x.y.z
+   #+END_SRC
+3. **Configure, Build, and Install**:
+   #+BEGIN_SRC sh
+   ./configure --prefix=/path/to/install
+   make
+   make install
+   #+END_SRC
+4. **Set Environment Variables**:
+   Add the following lines to your `.bashrc` or `.bash_profile`:
+   #+BEGIN_SRC sh
+   export PATH=/path/to/install/bin:$PATH
+   export LD_LIBRARY_PATH=/path/to/install/lib:$LD_LIBRARY_PATH
+   #+END_SRC
+* Loading MPI on PARAM shavak
+#+begin_src bash
+source /home/apps/spack/share/spack/setup.env.sh # source spack package manager
+spack find openmpi  # check if mpi is installed or not
+# spack install -j40 openmpi   # if not installed then this command will install the latest version of openmpi
+spack load openmpi/_your_hash   # load mpi with specific has if multiple version is installed
+#+end_src
+* MPI Hello World Example
+#+begin_src c
+#include <mpi.h>
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+    // Initialize the MPI environment
+    MPI_Init(&argc, &argv);
+
+    // Get the size of the communicator (number of processes)
+    int world_size      ;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the current process
+    int world_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+    // Print a message from each process
+    printf("Hello from process %d of %d\n", world_rank, world_size);
+
+    // Finalize the MPI environment
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+---
+
+* Detailed Explanation of Hello World Code
+1. **MPI_Init**:
+   - Initializes the MPI environment.
+   - Required before calling any other MPI functions.
+   - Syntax:
+     ```c
+     MPI_Init(&argc, &argv);
+     ```
+
+2. **MPI_COMM_WORLD**:
+   - Default communicator that includes all processes in the MPI program.
+   - Every process is part of this communicator.
+
+3. **MPI_Comm_size**:
+   - Retrieves the total number of processes in the communicator.
+   - Syntax:
+     ```c
+     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+     ```
+   - Example:
+     - If there are 4 processes, `world_size` will be `4`.
+
+4. **MPI_Comm_rank**:
+   - Retrieves the rank of the current process in the communicator.
+   - Syntax:
+     ```c
+     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+     ```
+   - Example:
+     - If there are 4 processes, their ranks will be `0`, `1`, `2`, and `3`.
+
+5. **MPI_Finalize**:
+   - Cleans up the MPI environment.
+   - Syntax:
+     ```c
+     MPI_Finalize();
+     ```
+
+---
+
+* Hello World in C
+** code
+#+begin_src C :tangle hello.c
+#include<stdio.h>
+int main(){
+    printf("Hello, World\n");
+    return 0;
+}
+#+end_src
+
+** compile
+#+begin_src bash :results output :exports both
+gcc hello.c -o hello.out
+#+end_src
+
+#+RESULTS:
+
+** run
+#+begin_src bash :results output :exports both
+./hello.out
+#+end_src
+
+#+RESULTS:
+: Hello, World
+
+* Hello World in using MPI
+** code
+#+begin_src C :tangle hello1.c
+#include<stdio.h>
+#include<mpi.h>
+int main(){
+    MPI_Init(NULL, NULL);
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    printf("Hello from process %d of %d\n", rank, size);
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+** compile
+#+begin_src bash :results output :exports both
+#source ~/git/spack/share/spack/setup-env.sh
+#spack load openmpi
+#mpicc hello.c
+bash compile.sh hello1.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc hello1.c -o hello1.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at hello1.out
+: ------------------------------------------------------------------
+
+** run
+#+begin_src bash :results output :exports both
+#source ~/git/spack/share/spack/setup-env.sh
+#spack load openmpi
+#mpirun -np 4 ./a.out
+bash run.sh ./hello1.out 4
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 4 ./hello1.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+Hello from process 1 of 4
+Hello from process 0 of 4
+Hello from process 3 of 4
+Hello from process 2 of 4
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
