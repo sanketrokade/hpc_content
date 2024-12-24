@@ -552,12 +552,8 @@ int main(){
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int chunksize = N / size;
-    int start = rank * chunksize;
-    int end = start + chunksize;
-    if(rank == size - 1) end = N;
     if(rank == 0){
-        for(int i = start; i < end; i++){
+        for(int i = 0; i < N; i++){
                 a[i] = i + 1;
         }
     }
