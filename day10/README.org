@@ -340,3 +340,228 @@ Hello from process 2 of 4
 ##########                     DONE                     ##########
 ##################################################################
 #+end_example
+
+* task1
+#+begin_src C :tangle task1.c
+#include<stdio.h>
+#include<mpi.h>
+#define N 1000
+int main(){
+    int size, rank;
+    int a[N];
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int chunksize = N / size;
+    int start = rank * chunksize;
+    int end = start + chunksize;
+    if(rank == size - 1) end = N;
+    for(int i = start; i < end; i++){
+        a[i] = i + 1;
+    }
+
+    for(int i = start; i < end; i++){
+        printf("%d ", a[i]);
+    }
+    printf("\n");
+    MPI_Finalize();
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh task1.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc task1.c -o task1.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at task1.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./task1.out 4 > output.txt
+#+end_src
+
+#+RESULTS:
+
+* Point-to-point communication
+#+begin_src C :tangle p2p_mpi.c
+#include"stdio.h"
+#include"mpi.h"
+
+int main()
+{
+	int myid, size;
+	int myval;
+	MPI_Init(NULL,NULL);
+
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+	if(myid==0){
+        myval = 100;
+		printf("\nmyid: %d \t myval = %d", myid, myval);
+        for(int i = 1; i < size; i++){
+            MPI_Send(&myval, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+        }
+		printf("\nmyid: %d \t Data sent.\n", myid);
+	}
+	else{	// Process with ID exactly equal to 1
+        if(myid == size - 1){
+            printf("I left\n");
+        }
+        else{
+               myval = 200;
+               MPI_Recv(&myval, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+               printf("\nmyid: %d \t Data received.\n", myid);
+               printf("\nmyid: %d \t myval = %d\n", myid, myval);
+        }
+	}
+
+	MPI_Finalize();
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh p2p_mpi.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc p2p_mpi.c -o p2p_mpi.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at p2p_mpi.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./p2p_mpi.out 4
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 4 ./p2p_mpi.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+
+myid: 0 	 myval = 100
+myid: 0 	 Data sent.
+
+myid: 1 	 Data received.
+myid: 1 	 myval = 100
+
+Program exit!
+id = 2, myval = 32765
+id = 3, myval = 32764
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
+
+
+** Sending array to process 1
+#+begin_src C :tangle p2p_mpi_array.c
+#include"stdio.h"
+#include"mpi.h"
+#define N 100
+
+int main()
+{
+	int myid, size;
+	int myval;
+
+    int arr[N];
+	//Initialize MPI environment
+	MPI_Init(NULL,NULL);
+
+	//Get total number of processes
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	//Get my unique ID among all processes
+	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+	// Process with ID exactly equal to 0
+	if(myid==0){
+		//Initialize data to be sent
+        for(int i = 0; i < N; i++) arr[i] = i + 1;
+		//Send data
+		MPI_Send(arr, N, MPI_INT, 1, 0, MPI_COMM_WORLD);
+		printf("\nmyid: %d \t Data sent.\n", myid);
+	}
+	else if(myid==1){	// Process with ID exactly equal to 1
+		//Initialize receive array to some other data
+		MPI_Recv(arr, N, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		printf("\nmyid: %d \t Data received.\n", myid);
+		//Print received data
+        for(int i = 0; i < N; i++)
+          printf("%d ", arr[i]);
+	}
+
+	//End MPI environment
+	MPI_Finalize();
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh p2p_mpi_array.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc p2p_mpi_array.c -o p2p_mpi_array.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at p2p_mpi_array.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./p2p_mpi_array.out 2
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 2 ./p2p_mpi_array.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+
+myid: 1 	 Data received.
+
+myid: 0 	 Data sent.
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
+* Point to point communication
+#+begin_src C :tangle p2p.c
+#include<stdio.h>
+#include<mpi.h>
+#define N 1000
+int main(){
+    int size, rank;
+    int a[N];
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int chunksize = N / size;
+    int start = rank * chunksize;
+    int end = start + chunksize;
+    if(rank == size - 1) end = N;
+    if(rank == 0){
+        for(int i = start; i < end; i++){
+                a[i] = i + 1;
+        }
+    }
+
+    MPI_Finalize();
+}
+#+end_src
