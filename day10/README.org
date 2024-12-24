@@ -542,6 +542,7 @@ myid: 0 	 Data sent.
 ##################################################################
 #+end_example
 * Point to point communication
+This will create 1000 send calls and 1000 recv calls which is not good for your network.
 #+begin_src C :tangle p2p.c
 #include<stdio.h>
 #include<mpi.h>
@@ -556,8 +557,117 @@ int main(){
         for(int i = 0; i < N; i++){
                 a[i] = i + 1;
         }
+
+        for(int i = 0; i < N; i++){
+            MPI_Send(&a[i], 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
+        }
+    }
+    else{
+        for(int i = 0; i < N; i++){
+            MPI_Recv(&a[i], 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", a[i]);
+        }
     }
 
     MPI_Finalize();
 }
 #+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh p2p.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc p2p.c -o p2p.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at p2p.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./p2p.out 2
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 2 ./p2p.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+991 992 993 994 995 996 997 998 999 1000
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
+
+** Better way
+#+begin_src C :tangle p2p1.c
+#include<stdio.h>
+#include<mpi.h>
+#define N 1000
+int main(){
+    int size, rank;
+    int a[N];
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 0){
+        for(int i = 0; i < N; i++){
+                a[i] = i + 1;
+        }
+
+
+        for(int i = 1; i < size; i++){
+            MPI_Send(a, N, MPI_INT, i, 0, MPI_COMM_WORLD);
+        }
+    }
+    else{
+        MPI_Recv(a, N, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", a[i]);
+        }
+        printf("\n");
+    }
+
+    MPI_Finalize();
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh p2p1.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc p2p1.c -o p2p1.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at p2p1.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./p2p1.out 10
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 5 ./p2p1.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+991 992 993 994 995 996 997 998 999 1000
+991 992 993 994 995 996 997 998 999 1000
+991 992 993 994 995 996 997 998 999 1000
+991 992 993 994 995 996 997 998 999 1000
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example

@@ -12,17 +12,17 @@ int main(){
                 a[i] = i + 1;
         }
 
-        for(int i = 0; i < N; i++){
-            MPI_Send(&a[i], 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
+
+        for(int i = 1; i < size; i++){
+            MPI_Send(a, N, MPI_INT, i, 0, MPI_COMM_WORLD);
         }
     }
     else{
-        for(int i = 0; i < N; i++){
-            MPI_Recv(&a[i], 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
+        MPI_Recv(a, N, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         for(int i = N - 10; i < N; i++){
             printf("%d ", a[i]);
         }
+        printf("\n");
     }
 
     MPI_Finalize();
