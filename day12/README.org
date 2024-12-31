@@ -289,13 +289,181 @@ int main() {
 
 *** Compilation and Execution
 - Compile the program:
-  #+BEGIN_SRC sh :exports both
+  #+BEGIN_SRC sh :exports both :results output
   bash compile.sh mpi_bcast.c
   #+END_SRC
 
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc mpi_bcast.c -o mpi_bcast.out
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at mpi_bcast.out
+  : ------------------------------------------------------------------
+
 - Run the program:
-  #+BEGIN_SRC sh :exports both
+  #+BEGIN_SRC sh :exports both :results output
   bash run.sh ./mpi_bcast.out 5
   #+END_SRC
 
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 5 ./mpi_bcast.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  Process 0 received data 100
+  Process 2 received data 100
+  Process 4 received data 100
+  Process 1 received data 100
+  Process 3 received data 100
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
 In this example, the integer `data` is initialized to 100 in the root process (process 0). The `MPI_Bcast` function is called to broadcast the value of `data` to all processes in the communicator. After the broadcast, each process prints the received value.
+
+** MPI_Bcast Example with array
+*** mpi_bcast_example.c
+#+BEGIN_SRC c :tangle mpi_bcast1.c
+#include <mpi.h>
+#include <stdio.h>
+#define N 10
+
+int main() {
+    MPI_Init(NULL, NULL);
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int arr[N];
+    if (rank == 0) {
+        for(int i = 0; i < N; i++) arr[i] = i + 1;
+    }
+
+    // Broadcast the data from the root process to all processes
+    MPI_Bcast(arr, N, MPI_INT, 0, MPI_COMM_WORLD);
+
+    for(int i = 0; i < N; i++){
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+
+*** Compilation and Execution
+- Compile the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash compile.sh mpi_bcast1.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc mpi_bcast1.c -o mpi_bcast1.out
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at mpi_bcast1.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash run.sh ./mpi_bcast1.out 5
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 5 ./mpi_bcast1.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  1 2 3 4 5 6 7 8 9 10
+  1 2 3 4 5 6 7 8 9 10
+  1 2 3 4 5 6 7 8 9 10
+  1 2 3 4 5 6 7 8 9 10
+  1 2 3 4 5 6 7 8 9 10
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
+In this example, the integer `data` is initialized to 100 in the root process (process 0). The `MPI_Bcast` function is called to broadcast the value of `data` to all processes in the communicator. After the broadcast, each process prints the received value.
+
+** send this ranksum to all the process using bcast
+#+begin_src C :tangle rankSum2.c
+#include<stdio.h>
+#include<mpi.h>
+int main(){
+    int rank, size;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //rank sum = 0 + 1 + 2 + 3 + 4
+    int rankSum;
+    if(rank != 0){
+        MPI_Send(&rank, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    }
+    else{
+        rankSum = rank;
+        int temp;
+        for(int i = 1; i < size; i++){
+            MPI_Recv(&temp, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            rankSum+= temp;
+        }
+    }
+    MPI_Bcast(&rankSum, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    printf("Rank %d : Sum of all the ranks = %d\n", rank, rankSum);
+
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh rankSum2.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc rankSum2.c -o rankSum2.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at rankSum2.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./rankSum2.out 10
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 10 ./rankSum2.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+Rank 9 : Sum of all the ranks = 45
+Rank 1 : Sum of all the ranks = 45
+Rank 2 : Sum of all the ranks = 45
+Rank 3 : Sum of all the ranks = 45
+Rank 8 : Sum of all the ranks = 45
+Rank 5 : Sum of all the ranks = 45
+Rank 4 : Sum of all the ranks = 45
+Rank 7 : Sum of all the ranks = 45
+Rank 6 : Sum of all the ranks = 45
+Rank 9 : Sum of all the ranks = 45
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
