@@ -1,0 +1,187 @@
+#+title: Day12
+
+* Scripts
+** compile script
+#+begin_src bash :tangle compile.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cb
+#spack load openmpi/c7kvqyq
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+inputFile=$1
+outputFile="${1%.*}.out"      # extract the name of the file without extension and adding extension .out
+#cmd=`mpicc $inputFile -o $outputFile`
+cmd="mpicc $inputFile -o $outputFile"     # running code using MPI
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+$cmd
+
+echo "Compilation successful. Check at $outputFile"
+echo "------------------------------------------------------------------"
+#+end_src
+
+** run script
+#+begin_src bash :tangle run.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cbc
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+cmd="mpirun -np $2 $1"
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+echo "##################################################################"
+echo "##########                    OUTPUT                    ##########"
+echo "##################################################################"
+echo
+mpirun -np $2 $1
+echo
+echo "##################################################################"
+echo "##########                     DONE                     ##########"
+echo "##################################################################"
+#+end_src
+
+* sum4.c
+#+begin_src C :tangle sum4.c
+#include<stdio.h>
+#include<stdlib.h>
+#include<mpi.h>
+int main(){
+    int size, rank;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    const int n = 1000;
+    int chunksize = n / size;
+    int start = rank * chunksize;
+    int end = start + chunksize;
+    if(rank == size - 1){
+        end = n;
+        chunksize += n % size;
+    }
+    int arr[chunksize];
+
+    int index = 0;
+    for(int i = start; i < end; i++){
+        arr[index] = i + 1;
+        index++;
+    }
+
+    index = 0;
+    int localsum = 0;
+    for(int i = start; i < end; i++){
+        localsum += arr[index];
+        index++;
+    }
+
+    if(rank != 0){
+        MPI_Send(&localsum, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    }
+    else{
+        int totalsum = 0;
+        totalsum += localsum;
+        for(int i = 1; i < size; i++){
+            MPI_Recv(&localsum, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            totalsum += localsum;
+        }
+        printf("Total sum = %d\n", totalsum);
+    }
+
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh sum4.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc sum4.c -o sum4.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at sum4.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./sum4.out 7
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 7 ./sum4.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+Total sum = 500500
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
+* calculate sum of rank of all the process
+#+begin_src C :tangle rankSum.c
+#include<stdio.h>
+#include<mpi.h>
+int main(){
+    int rank, size;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //rank sum = 0 + 1 + 2 + 3 + 4
+    if(rank != 0){
+        MPI_Send(&rank, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    }
+    else{
+        int rankSum = rank;
+        for(int i = 1; i < size; i++){
+            MPI_Recv(&rank, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            rankSum+= rank;
+        }
+        printf("Sum of all the ranks = %d\n", rankSum);
+    }
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh rankSum.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc rankSum.c -o rankSum.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at rankSum.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./rankSum.out 10
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 10 ./rankSum.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+Sum of all the ranks = 45
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
