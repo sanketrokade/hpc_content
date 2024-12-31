@@ -478,17 +478,32 @@ int main() {
     MPI_Init(NULL, NULL);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    int data1, data2;
+    int data1, data2, data3, data4, data5;
     if(rank == 0){
         data1 = 100;
         data2 = 200;
-        MPI_Send(&data1, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
-        MPI_Send(&data2, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
+        data3 = 300;
+        data4 = 400;
+        data5 = 500;
+        MPI_Request request;
+        MPI_Isend(&data1, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &request);
+        MPI_Isend(&data2, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &request);
+        MPI_Isend(&data3, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &request);
+        MPI_Isend(&data4, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &request);
+        MPI_Isend(&data5, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &request);
     }
     else if(rank == 1){
         MPI_Recv(&data1, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&data2, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        printf("process %d received data1 %d data2 %d\n", rank, data1, data2);
+        MPI_Recv(&data3, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&data4, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&data5, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("process %d\n", rank);
+        printf("data1 %d\n", data1);
+        printf("data2 %d\n", data2);
+        printf("data3 %d\n", data3);
+        printf("data4 %d\n", data4);
+        printf("data5 %d\n", data5);
     }
 
     MPI_Finalize();
@@ -508,19 +523,147 @@ bash compile.sh tag.c
 : ------------------------------------------------------------------
 
 #+begin_src bash :results output :exports both
-bash run.sh ./tag.out 2
+bash run.sh ./tag.out 10
 #+end_src
 
 #+RESULTS:
 #+begin_example
 ------------------------------------------------------------------
-Command executed: mpirun -np 2 ./tag.out
+Command executed: mpirun -np 10 ./tag.out
 ------------------------------------------------------------------
 ##################################################################
 ##########                    OUTPUT                    ##########
 ##################################################################
 
-process 1 received data1 100 data2 200
+process 1
+data1 100
+data2 200
+data3 300
+data4 400
+data5 500
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
+
+* Anytag, Anysource
+#+begin_src C :tangle anySource.c
+#include <mpi.h>
+#include <stdio.h>
+
+int main() {
+    int rank, size;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int data1, data2;
+    if(rank != 0){
+        data1 = rank;
+        data2 = 234;
+        MPI_Request request;
+        MPI_Isend(&data1, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &request);
+        MPI_Isend(&data2, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &request);
+    }
+    if(rank == 0){
+        MPI_Recv(&data1, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("data1 %d\n", data1);
+    }
+
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh anySource.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc anySource.c -o anySource.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at anySource.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./anySource.out 10
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 10 ./anySource.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+data1 7
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
+
+* MPI_Status
+#+begin_src C :tangle mpi_status.c
+#include <mpi.h>
+#include <stdio.h>
+
+int main() {
+    int rank, size;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int data1, data2;
+    if(rank != 0){
+        data1 = rank;
+        data2 = 234;
+        MPI_Request request;
+        MPI_Isend(&data1, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &request);
+        MPI_Isend(&data2, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &request);
+    }
+    if(rank == 0){
+        MPI_Status status;
+        MPI_Recv(&data1, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        printf("data1 %d\n", data1);
+        printf("sender %d\n", status.MPI_SOURCE);
+        printf("tag %d\n", status.MPI_TAG);
+    }
+
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh mpi_status.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc mpi_status.c -o mpi_status.out
+: ------------------------------------------------------------------
+: Compilation successful. Check at mpi_status.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./mpi_status.out 10
+#+end_src
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 10 ./mpi_status.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+data1 3
+sender 3
+tag 0
 
 ##################################################################
 ##########                     DONE                     ##########
