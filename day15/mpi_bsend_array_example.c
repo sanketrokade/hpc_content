@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
-    int array_size = 10;
+    int array_size = 1000000;
     int* array = (int*)malloc(array_size * sizeof(int));
 
     if (rank == 0) {
@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     } else if (rank == 1) {
         MPI_Recv(array, array_size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         printf("Process 1 received array from process 0: ");
-        for (int i = 0; i < array_size; i++) {
+        for (int i = array_size - 5; i < array_size; i++) {
             printf("%d ", array[i]);
         }
         printf("\n");

@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
 
 In this example, each process sends its rank and an incremented value to all other processes. The `MPI_Alltoall` function is used to exchange these values among all processes. Each process then prints the received values.
 
-* Task1
+* Task2
 #+BEGIN_SRC C :tangle task2.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
@@ -396,26 +396,42 @@ int main(int argc, char** argv) {
 
 In this example, `MPI_Sendrecv_replace` is used to send and receive messages using the same buffer. Process 0 sends the number 100 to process 1 and receives a number from process 1 into the same buffer. Process 1 receives the number from process 0, modifies it to 200, and sends it back to process 0 using the same buffer.
 
-* MPI_Ssend
-#+BEGIN_SRC C :tangle mpi_ssend_example.c
+* MPI_Send and recv Example with larger data
+#+BEGIN_SRC C :tangle task3.c
 #include <mpi.h>
+#include <stdlib.h>
 #include <stdio.h>
+#define N 100000
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
-
+    MPI_Status status;
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    int number;
-    if (rank == 0) {
-        number = 100;
-        MPI_Ssend(&number, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
-        printf("Process 0 sent number %d to process 1\n", number);
-    } else if (rank == 1) {
-        MPI_Recv(&number, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        printf("Process 1 received number %d from process 0\n", number);
+    int *buffer;
+    buffer = (int*) malloc(sizeof(int) * N);
+    for(int i = 0; i < N; i++){
+        buffer[i] = (rank * i) + 1;
+    }
+    if(rank == 0){
+        MPI_Send(buffer, N, MPI_INT, 1, 0, MPI_COMM_WORLD);
+        MPI_Recv(buffer, N, MPI_INT, 1, 0, MPI_COMM_WORLD, &status);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
+    }
+    else if(rank == 1){
+        MPI_Recv(buffer, N, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+        MPI_Send(buffer, N, MPI_INT, 0, 0, MPI_COMM_WORLD);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
     }
 
     MPI_Finalize();
@@ -425,41 +441,197 @@ int main(int argc, char** argv) {
 
 ** Compilation and Execution
 - Compile the program:
-  #+BEGIN_SRC sh :results output :exports both
-  bash compile.sh mpi_ssend_example.c
+  #+BEGIN_SRC sh :exports both :results output
+  bash compile.sh task3.c
   #+END_SRC
 
   #+RESULTS:
   : ------------------------------------------------------------------
-  : Command executed: mpicc mpi_ssend_example.c -o mpi_ssend_example.out
+  : Command executed: mpicc task3.c -o task3.out
   : ------------------------------------------------------------------
-  : Compilation successful. Check at mpi_ssend_example.out
+  : Compilation successful. Check at task3.out
   : ------------------------------------------------------------------
 
 - Run the program:
-  #+BEGIN_SRC sh :results output :exports both
-  bash run.sh ./mpi_ssend_example.out 2
+  #+BEGIN_SRC sh :exports both :results output
+  bash run.sh ./task3.out 2
   #+END_SRC
 
   #+RESULTS:
   #+begin_example
   ------------------------------------------------------------------
-  Command executed: mpirun -np 2 ./mpi_ssend_example.out
+  Command executed: mpirun -np 2 ./task3.out
   ------------------------------------------------------------------
   ##################################################################
   ##########                    OUTPUT                    ##########
   ##################################################################
 
-  Process 1 received number 100 from process 0
-  Process 0 sent number 100 to process 1
+  Process 0 is having : 1 1 1 1 1 1 1 1 1 1
+  Process 1 is having : 1 1 1 1 1 1 1 1 1 1
 
   ##################################################################
   ##########                     DONE                     ##########
   ##################################################################
   #+end_example
 
-In this example, `MPI_Ssend` is used to send a number from process 0 to process 1 synchronously.
+In this example, `MPI_Sendrecv` is used to send and receive messages in a single call. Process 0 sends the number 100 to process 1 and receives a number from process 1. Process 1 receives the number from process 0, modifies it to 200, and sends it back to process 0.
 
+* Swap data of two process
+#+BEGIN_SRC C :tangle task4.c
+#include <mpi.h>
+#include <stdlib.h>
+#include <stdio.h>
+#define N 100000
+
+int main(int argc, char** argv) {
+    MPI_Init(&argc, &argv);
+    MPI_Status status;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int *buffer;
+    buffer = (int*) malloc(sizeof(int) * N);
+    for(int i = 0; i < N; i++){
+        buffer[i] = (rank * i) + i;
+    }
+    if(rank == 0){
+        MPI_Send(buffer, N, MPI_INT, 1, 0, MPI_COMM_WORLD);
+        MPI_Recv(buffer, N, MPI_INT, 1, 0, MPI_COMM_WORLD, &status);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
+    }
+    else if(rank == 1){
+        int *tempBuffer = (int*) malloc(sizeof(int) * N);
+        MPI_Recv(tempBuffer, N, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+        MPI_Send(buffer, N, MPI_INT, 0, 0, MPI_COMM_WORLD);
+        for(int i = 0; i < N; i++) buffer[i] = tempBuffer[i];
+        free(tempBuffer);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
+    }
+
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+
+** Compilation and Execution
+- Compile the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash compile.sh task4.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc task4.c -o task4.out
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at task4.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash run.sh ./task4.out 2
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 2 ./task4.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  Process 0 is having : 199980 199982 199984 199986 199988 199990 199992 199994 199996 199998
+  Process 1 is having : 99990 99991 99992 99993 99994 99995 99996 99997 99998 99999
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
+* Swap data of two process with MPI_Sendrecv_replace
+#+BEGIN_SRC C :tangle task5.c
+#include <mpi.h>
+#include <stdlib.h>
+#include <stdio.h>
+#define N 100000
+
+int main(int argc, char** argv) {
+    MPI_Init(&argc, &argv);
+    MPI_Status status;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int *buffer;
+    buffer = (int*) malloc(sizeof(int) * N);
+    for(int i = 0; i < N; i++){
+        buffer[i] = (rank * i) + i;
+    }
+    if(rank == 0){
+        MPI_Sendrecv_replace(buffer, N, MPI_INT, 1, 0, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
+    }
+    else if(rank == 1){
+        MPI_Sendrecv_replace(buffer, N, MPI_INT, 0, 0, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
+    }
+
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+
+** Compilation and Execution
+- Compile the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash compile.sh task5.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc task5.c -o task5.out
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at task5.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash run.sh ./task5.out 2
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 2 ./task5.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  Process 0 is having : 199980 199982 199984 199986 199988 199990 199992 199994 199996 199998
+  Process 1 is having : 99990 99991 99992 99993 99994 99995 99996 99997 99998 99999
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
 * MPI_Bsend
 #+BEGIN_SRC C :tangle mpi_bsend_example.c
 #include <mpi.h>
@@ -549,7 +721,7 @@ int main(int argc, char** argv) {
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
-    int array_size = 10;
+    int array_size = 1000000;
     int* array = (int*)malloc(array_size * sizeof(int));
 
     if (rank == 0) {
@@ -570,7 +742,7 @@ int main(int argc, char** argv) {
     } else if (rank == 1) {
         MPI_Recv(array, array_size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         printf("Process 1 received array from process 0: ");
-        for (int i = 0; i < array_size; i++) {
+        for (int i = array_size - 5; i < array_size; i++) {
             printf("%d ", array[i]);
         }
         printf("\n");
@@ -611,7 +783,7 @@ int main(int argc, char** argv) {
   ##################################################################
 
   Process 0 sent array to process 1
-  Process 1 received array from process 0: 1 2 3 4 5 6 7 8 9 10
+  Process 1 received array from process 0: 999996 999997 999998 999999 1000000
 
   ##################################################################
   ##########                     DONE                     ##########
@@ -619,3 +791,84 @@ int main(int argc, char** argv) {
   #+end_example
 
 In this example, `MPI_Bsend` is used to send an array of integers from process 0 to process 1 using a buffered send. The received data is printed by process 1.
+
+
+* MPI_Send and recv Example with larger data with Bsend
+#+BEGIN_SRC C :tangle task3.c
+#include <mpi.h>
+#include <stdlib.h>
+#include <stdio.h>
+#define N 100000
+
+int main(int argc, char** argv) {
+    MPI_Init(&argc, &argv);
+    MPI_Status status;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int *buffer;
+    buffer = (int*) malloc(sizeof(int) * N);
+    for(int i = 0; i < N; i++){
+        buffer[i] = (rank * i) + 1;
+    }
+    if(rank == 0){
+        MPI_Send(buffer, N, MPI_INT, 1, 0, MPI_COMM_WORLD);
+        MPI_Recv(buffer, N, MPI_INT, 1, 0, MPI_COMM_WORLD, &status);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
+    }
+    else if(rank == 1){
+        MPI_Recv(buffer, N, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+        MPI_Send(buffer, N, MPI_INT, 0, 0, MPI_COMM_WORLD);
+        printf("Process %d is having : ", rank);
+        for(int i = N - 10; i < N; i++){
+            printf("%d ", buffer[i]);
+        }
+        printf("\n");
+    }
+
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+
+** Compilation and Execution
+- Compile the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash compile.sh task3.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc task3.c -o task3.out
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at task3.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash run.sh ./task3.out 2
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 2 ./task3.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  Process 0 is having : 1 1 1 1 1 1 1 1 1 1
+  Process 1 is having : 1 1 1 1 1 1 1 1 1 1
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
+In this example, `MPI_Sendrecv` is used to send and receive messages in a single call. Process 0 sends the number 100 to process 1 and receives a number from process 1. Process 1 receives the number from process 0, modifies it to 200, and sends it back to process 0.
