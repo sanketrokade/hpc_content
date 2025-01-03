@@ -227,7 +227,7 @@ myid: 0 	 Data sent.
 In synchronous communication, the send operation does not complete until the matching receive operation has been started.
 
 *** mpi_sync.c
-#+BEGIN_SRC c :tangle mpi_sync.c :results output :exports both
+#+BEGIN_SRC C :tangle mpi_sync.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
 
@@ -298,7 +298,7 @@ int main(int argc, char** argv) {
 In asynchronous communication, the send operation can complete before the matching receive operation starts. Non-blocking operations allow computation and communication to overlap.
 
 *** mpi_async.c
-#+BEGIN_SRC c :tangle mpi_async.c :results output :exports both
+#+BEGIN_SRC C :tangle mpi_async.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -380,7 +380,7 @@ int main(int argc, char** argv) {
 - once your total localsum is received by all the process 0 should print the result on your screen.
 - finalize mpi environment
 ** mpi_array_sum.c
-#+BEGIN_SRC c :tangle mpi_array_sum.c
+#+BEGIN_SRC C :tangle mpi_array_sum.c
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -482,7 +482,7 @@ int main(int argc, char** argv) {
   ##################################################################
   #+end_example
 * Task1
-#+BEGIN_SRC c :tangle task1.c :results output :exports both
+#+BEGIN_SRC C :tangle task1.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
 
@@ -556,7 +556,7 @@ Process 1 sent number 200 to process 0
 #+end_example
 
 * Task2
-#+BEGIN_SRC c :tangle task2.c :results output :exports both
+#+BEGIN_SRC C :tangle task2.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
 
@@ -630,7 +630,7 @@ Process 1 n2 received number 200 from process 0
 #+end_example
 
 * Task3
-#+BEGIN_SRC c :tangle task3.c :results output :exports both
+#+BEGIN_SRC C :tangle task3.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
 
@@ -707,7 +707,7 @@ Process 1 received number 200 from process 0
 ##################################################################
 #+end_example
 * Task4
-#+BEGIN_SRC c :tangle task4.c :results output :exports both
+#+BEGIN_SRC C :tangle task4.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
 #define N 10000
@@ -785,7 +785,7 @@ Total sum = 50005000
 
 * test
 ** test.c
-#+BEGIN_SRC c :tangle test.c
+#+BEGIN_SRC C :tangle test.c
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
