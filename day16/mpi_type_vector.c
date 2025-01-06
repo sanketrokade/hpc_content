@@ -13,19 +13,14 @@ int main(int argc, char** argv) {
         fprintf(stderr, "World size must be greater than 1 for this example\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
-
     const int count = 3;       // Number of blocks
     const int blocklength = 3; // Number of elements in each block
     const int stride = 6;      // Number of elements between the start of each block
     int data[15];              // Array to send/receive
     MPI_Datatype vector_type;
-
-    // Create a vector datatype
     MPI_Type_vector(count, blocklength, stride, MPI_INT, &vector_type);
     MPI_Type_commit(&vector_type);
-
     if (rank == 0) {
-        // Initialize the data array with some values
         for (int i = 0; i < 15; i++) {
             data[i] = i + 1;
         }
@@ -37,11 +32,9 @@ int main(int argc, char** argv) {
         }
         printf("\n");
     } else if (rank == 1) {
-        // Initialize the data array to zero
         for (int i = 0; i < 15; i++) {
             data[i] = 0;
         }
-
         MPI_Recv(data, 1, vector_type, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         printf("Process 1 received data: ");
         for (int i = 0; i < 15; i++) {
@@ -49,7 +42,6 @@ int main(int argc, char** argv) {
         }
         printf("\n");
     }
-
     MPI_Type_free(&vector_type);
     MPI_Finalize();
     return 0;
