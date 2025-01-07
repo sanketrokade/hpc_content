@@ -58,8 +58,9 @@ int main(int argc, char** argv) {
     }
     long long final_sum = 0;
     long long final_square_sum = 0;
-    MPI_Allreduce(&local_sum, &final_sum, 1, MPI_LONG_LONG, MPI_SUM, new_comm);
-    MPI_Allreduce(&local_square_sum, &final_square_sum, 1, MPI_LONG_LONG, MPI_SUM, new_comm);
+    if(color == 0)
+        MPI_Allreduce(&local_sum, &final_sum, 1, MPI_LONG_LONG, MPI_SUM, new_comm);
+    else MPI_Allreduce(&local_square_sum, &final_square_sum, 1, MPI_LONG_LONG, MPI_SUM, new_comm);
     if(new_rank == 0){
         if(color == 0)
             printf("World Rank: %d, Sum of arrays: %lld\n", rank, final_sum);
