@@ -14,7 +14,7 @@ spack load openmpi
 inputFile=$1
 outputFile="${1%.*}.out"      # extract the name of the file without extension and adding extension .out
 #cmd=`mpicc $inputFile -o $outputFile`
-cmd="mpicc $inputFile -o $outputFile -lm"     # running code using MPI
+cmd="mpicc $inputFile -o $outputFile -lm -fopenmp"     # running code using MPI
 echo "------------------------------------------------------------------"
 echo "Command executed: $cmd"
 echo "------------------------------------------------------------------"
@@ -549,6 +549,12 @@ int main(int argc, char **argv){
     int end = start + chunksize;
     if(rank == size - 1) end = n;
 
+    MPI_Datatype contiguous_type;
+
+    // Create a contiguous datatype
+    MPI_Type_contiguous(count, MPI_INT, &contiguous_type);
+    MPI_Type_commit(&contiguous_type);
+
     int **localArr1 = (int**) malloc(sizeof(int*) * chunksize);
     int **localArr2 = (int**) malloc(sizeof(int*) * chunksize);
     int **sumArr= (int**) malloc(sizeof(int*) * chunksize);
@@ -557,7 +563,7 @@ int main(int argc, char **argv){
         localArr2[i] = (int*) malloc(sizeof(int) * n);
         sumArr[i] = (int*) malloc(sizeof(int) * n);
     }
-    for(int i = 0; i < chunksize; i++){
+    for(int i = start; i < end; i++){
         MPI_Scatter(m1[i], n, MPI_INT, localArr1[i], n, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Scatter(m2[i], n, MPI_INT, localArr2[i], n, MPI_INT, 0, MPI_COMM_WORLD);
     }
@@ -709,3 +715,82 @@ int main() {
    ##########                     DONE                     ##########
    ##################################################################
    #+end_example
+
+* Serial Matrix Multiplication
+#+BEGIN_SRC C :tangle serial_matrix_multiplication.c
+#include <stdio.h>
+#include <stdlib.h>
+#include<omp.h>
+
+int main() {
+    int n = 2000;
+    int i, j, k;
+
+    // Allocate memory for matrices
+    int **A = (int **)malloc(n * sizeof(int *));
+    int **B = (int **)malloc(n * sizeof(int *));
+    int **C = (int **)malloc(n * sizeof(int *));
+    for (i = 0; i < n; i++) {
+        A[i] = (int *)malloc(n * sizeof(int));
+        B[i] = (int *)malloc(n * sizeof(int));
+        C[i] = (int *)malloc(n * sizeof(int));
+    }
+
+    // Initialize matrices
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            A[i][j] = 1;
+            B[i][j] = 1;
+            C[i][j] = 0;
+        }
+    }
+
+    double starttime = omp_get_wtime();
+    // Matrix multiplication
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            for (k = 0; k < n; k++) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+    double endtime = omp_get_wtime();
+
+    // Print result
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            printf("%d ", C[i][j]);
+        }
+        printf("\n");
+    }
+    printf("execution time: %lf\n", endtime - starttime);
+
+    // Free allocated memory
+    for (i = 0; i < n; i++) {
+        free(A[i]);
+        free(B[i]);
+        free(C[i]);
+    }
+    free(A);
+    free(B);
+    free(C);
+
+    return 0;
+}
+#+END_SRC
+
+#+BEGIN_SRC sh :results output :exports both
+bash compile.sh serial_matrix_multiplication.c
+#+END_SRC
+
+   #+RESULTS:
+   : ------------------------------------------------------------------
+   : Command executed: mpicc serial_matrix_multiplication.c -o serial_matrix_multiplication.out -lm -fopenmp
+   : ------------------------------------------------------------------
+   : Compilation successful. Check at serial_matrix_multiplication.out
+   : ------------------------------------------------------------------
+
+#+BEGIN_SRC sh :results output :exports both
+bash run.sh ./serial_matrix_multiplication.out 10 > output.txt
+#+END_SRC
+

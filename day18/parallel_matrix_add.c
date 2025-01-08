@@ -39,24 +39,19 @@ int main(int argc, char **argv){
         sumArr[i] = (int*) malloc(sizeof(int) * n);
     }
     for(int i = 0; i < chunksize; i++){
-        MPI_Scatter(m1[i], chunksize, MPI_INT, localArr1[i], chunksize, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Scatter(m2[i], chunksize, MPI_INT, localArr2[i], chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Scatter(m1[i], n, MPI_INT, localArr1[i], n, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Scatter(m2[i], n, MPI_INT, localArr2[i], n, MPI_INT, 0, MPI_COMM_WORLD);
     }
 
-    for(int i = 0; i < chunksize; i++){
-        for(int j = 0; j < n; j++){
-            printf("%d ", localArr1[i][j]);
-            printf("%d ", localArr2[i][j]);
-        }
-    }
 
-    /*
     for(int i = start; i < end; i++){
         for(int j = 0; j < n; j++){
             sumArr[i][j] = localArr1[i][j] + localArr2[i][j];
         }
     }
-    MPI_Gather(sumArr, chunksize * n, MPI_INT, sumMat, chunksize * n, MPI_INT, 0, MPI_COMM_WORLD);
+    for(int i = 0; i < chunksize; i++){
+        MPI_Gather(sumArr[i], chunksize, MPI_INT, sumMat, chunksize * n, MPI_INT, 0, MPI_COMM_WORLD);
+    }
 
 
         for(int i = start; i < end; i++){
@@ -66,7 +61,6 @@ int main(int argc, char **argv){
             printf("\n");
     }
 
-    */
 
     MPI_Finalize();
     return 0;
