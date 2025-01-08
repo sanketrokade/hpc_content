@@ -1,0 +1,711 @@
+#+title: Day18
+
+* Scripts
+** compile script
+#+begin_src bash :tangle compile.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cb
+#spack load openmpi/c7kvqyq
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+inputFile=$1
+outputFile="${1%.*}.out"      # extract the name of the file without extension and adding extension .out
+#cmd=`mpicc $inputFile -o $outputFile`
+cmd="mpicc $inputFile -o $outputFile -lm"     # running code using MPI
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+$cmd
+
+echo "Compilation successful. Check at $outputFile"
+echo "------------------------------------------------------------------"
+#+end_src
+
+** run script
+#+begin_src bash :tangle run.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cbc
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+cmd="mpirun -np $2 $1"
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+echo "##################################################################"
+echo "##########                    OUTPUT                    ##########"
+echo "##################################################################"
+echo
+mpirun -np $2 $1
+echo
+echo "##################################################################"
+echo "##########                     DONE                     ##########"
+echo "##################################################################"
+#+end_src
+
+* PI calculator serial
+#+begin_src C :tangle pi_serial.c
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<sys/time.h>
+#define N 999999999
+int main()
+{
+	int i, j;
+	double area, pi;
+	double dx, y, x;
+	double exe_time;
+	struct timeval stop_time, start_time;
+	dx = 1.0/N;
+	x = 0.0;
+	area = 0.0;
+    gettimeofday(&start_time, NULL);
+    for(i=0;i<N;i++){
+        x = i*dx;
+        y = sqrt(1-x*x);
+        area += y*dx;
+    }
+	gettimeofday(&stop_time, NULL);
+	exe_time = (stop_time.tv_sec+(stop_time.tv_usec/1000000.0)) - (start_time.tv_sec+(start_time.tv_usec/1000000.0));
+	pi = 4.0*area;
+	printf("\n Value of pi is = %.16lf\n Execution time is = %lf seconds\n", pi, exe_time);
+    return 0;
+}
+#+end_src
+
+- Compile the program:
+  #+BEGIN_SRC sh :results output :exports both
+    gcc pi_serial.c -o pi_serial.out -lm
+  #+END_SRC
+
+  #+RESULTS:
+
+- Run the program:
+  #+BEGIN_SRC sh :results output :exports both
+    ./pi_serial.out
+  #+END_SRC
+
+  #+RESULTS:
+  :
+  :  Value of pi is = 3.1415926555902138
+  :  Execution time is = 1.844049 seconds
+
+* PI calculator serial long long
+#+begin_src C :tangle pi_serial_ll.c
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<sys/time.h>
+int main()
+{
+    const long long N = 99999999999;
+	long long i, j;
+	double area, pi;
+	double dx, y, x;
+	double exe_time;
+	struct timeval stop_time, start_time;
+	dx = (1.0 * 1L)/N;
+	x = 0.0;
+	area = 0.0;
+    gettimeofday(&start_time, NULL);
+    for(i=0;i<N;i++){
+        x = i*dx;
+        y = sqrt(1-x*x);
+        area += y*dx;
+    }
+	gettimeofday(&stop_time, NULL);
+	exe_time = (stop_time.tv_sec+(stop_time.tv_usec/1000000.0)) - (start_time.tv_sec+(start_time.tv_usec/1000000.0));
+	pi = 4.0*area;
+	printf("\n Value of pi is = %.16lf\n Execution time is = %lf seconds\n", pi, exe_time);
+    return 0;
+}
+#+end_src
+
+- Compile the program:
+  #+BEGIN_SRC sh :results output :exports both
+    gcc pi_serial_ll.c -o pi_serial_ll.out -lm
+  #+END_SRC
+
+  #+RESULTS:
+
+- Run the program:
+  #+BEGIN_SRC sh :results output :exports both
+    ./pi_serial_ll.out
+  #+END_SRC
+
+  #+RESULTS:
+  :
+  :  Value of pi is = 3.1415926535490444
+  :  Execution time is = 185.826322 seconds
+
+* PI calculator parallel
+#+begin_src C :tangle pi_parallel.c
+#include<stdio.h>
+#include<mpi.h>
+#include<stdlib.h>
+#include<math.h>
+#include<sys/time.h>
+int main()
+{
+    MPI_Init(NULL, NULL);
+    const long long N = 99999999999;
+	long long i, j;
+	double area, pi;
+	double dx, y, x;
+	double exe_time;
+	struct timeval stop_time, start_time;
+	dx = 1.0/N;
+	x = 0.0;
+	area = 0.0;
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    long long chunksize = N / size;
+    long long start = rank * chunksize;
+    long long end = start + chunksize;
+    if(rank == size - 1) end = N;
+    if(rank == 0)
+        gettimeofday(&start_time, NULL);
+    for(i=start;i<end;i++){
+        x = i*dx;
+        y = sqrt(1-x*x);
+        area += y*dx;
+    }
+    double finalarea;
+    MPI_Reduce(&area, &finalarea, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    if(rank == 0){
+        gettimeofday(&stop_time, NULL);
+        exe_time = (stop_time.tv_sec+(stop_time.tv_usec/1000000.0)) - (start_time.tv_sec+(start_time.tv_usec/1000000.0));
+        pi = 4.0*finalarea;
+        printf("\n Value of pi is = %.16lf\n Execution time is = %lf seconds\n", pi, exe_time);
+    }
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+- Compile the program
+  #+BEGIN_SRC sh :results output :exports both
+bash compile.sh pi_parallel.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc pi_parallel.c -o pi_parallel.out -lm
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at pi_parallel.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :results output :exports both
+bash run.sh ./pi_parallel.out 10
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 10 ./pi_parallel.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+
+   Value of pi is = 3.1415926536117809
+   Execution time is = 53.562992 seconds
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
+* Prime number count
+#+begin_src C :tangle prime_count_serial.c
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<time.h>
+#include<sys/time.h>
+
+#define N 1000000
+/*
+                N  PRIME_NUMBER
+
+                1           0
+               10           4
+              100          25
+            1,000         168
+           10,000       1,229
+          100,000       9,592
+        1,000,000      78,498
+       10,000,000     664,579
+      100,000,000   5,761,455
+    1,000,000,000  50,847,534
+
+,*/
+
+int main()
+{
+	int i, j;
+	int count, flag;
+	double exe_time;
+	struct timeval stop_time, start_time;
+
+	count = 1; // 2 is prime. Our loop starts from 3
+
+	gettimeofday(&start_time, NULL);
+
+
+	for(i=3;i<N;i++)
+	{
+	 	flag = 0;
+		for(j=2;j<i;j++)
+	    {
+		    if((i%j) == 0)
+		    {
+			    flag = 1;
+			    break;
+		    }
+	    }
+        if(flag == 0)
+        {
+        	count++;
+        }
+	}
+
+	gettimeofday(&stop_time, NULL);
+	exe_time = (stop_time.tv_sec+(stop_time.tv_usec/1000000.0)) - (start_time.tv_sec+(start_time.tv_usec/1000000.0));
+
+	printf("\n Number of prime numbers = %d \n Execution time is = %lf seconds\n", count, exe_time);
+
+}
+#+end_src
+
+- Compile the program:
+  #+BEGIN_SRC sh :results output :exports both
+    gcc prime_count_serial.c -o prime_count_serial.out -lm
+  #+END_SRC
+
+  #+RESULTS:
+
+- Run the program:
+  #+BEGIN_SRC sh :results output :exports both
+    ./prime_count_serial.out
+  #+END_SRC
+
+  #+RESULTS:
+  :
+  :  Number of prime numbers = 78498
+  :  Execution time is = 51.983666 seconds
+
+* Prime number count parallel
+#+begin_src C :tangle prime_count_parallel.c
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<time.h>
+#include<sys/time.h>
+#include<mpi.h>
+
+#define N 100000
+
+int main()
+{
+    MPI_Init(NULL, NULL);
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+	int i, j;
+	int count, flag;
+	double exe_time;
+	struct timeval stop_time, start_time;
+    int chunksize = N / size;
+    int start = rank * chunksize;
+    int end = start + chunksize;
+    if(rank == size - 1) end = N;
+	count = 0;
+    if(rank == 0){
+        count = 1;
+        start = 3;
+    }
+	gettimeofday(&start_time, NULL);
+	for(i=start;i<end;i++)
+	{
+	 	flag = 0;
+		for(j=2;j<i;j++)
+	    {
+		    if((i%j) == 0)
+		    {
+			    flag = 1;
+			    break;
+		    }
+	    }
+        if(flag == 0)
+        {
+        	count++;
+        }
+	}
+    int total_count = 0;
+    MPI_Reduce(&count, &total_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if(rank == 0){
+        gettimeofday(&stop_time, NULL);
+        exe_time = (stop_time.tv_sec+(stop_time.tv_usec/1000000.0)) - (start_time.tv_sec+(start_time.tv_usec/1000000.0));
+        printf("\n Number of prime numbers = %d \n Execution time is = %lf seconds\n", total_count, exe_time);
+    }
+    MPI_Finalize();
+
+}
+#+end_src
+
+- Compile the program:
+  #+BEGIN_SRC sh :results output :exports both
+bash compile.sh prime_count_parallel.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc prime_count_parallel.c -o prime_count_parallel.out -lm
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at prime_count_parallel.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :results output :exports both
+bash run.sh ./prime_count_parallel.out 10
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 10 ./prime_count_parallel.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+
+   Number of prime numbers = 9592
+   Execution time is = 0.208277 seconds
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
+* Serial Matrix Addition
+#+begin_src C :tangle serial_mat_add.c
+#include<stdio.h>
+#include<omp.h>
+#include<stdlib.h>
+
+int main(int argc, char **argv){
+    int i, j, n = 400;
+    int **m1, **m2, **sumMat;
+    m1 = (int**)malloc(sizeof(int*) * n);
+    m2 = (int**)malloc(sizeof(int*) * n);
+    sumMat = (int**)malloc(sizeof(int*) * n);
+    for(i = 0; i < n; i++){
+        sumMat[i] = (int*)malloc(sizeof(int) * n);
+        m1[i] = (int*)malloc(sizeof(int) * n);
+        m2[i] = (int*)malloc(sizeof(int) * n);
+        for(j = 0; j < n; j++){
+            m1[i][j] = 1;
+            m2[i][j] = 1;
+            sumMat[i][j] = 0;
+        }
+    }
+
+    for(i = 0; i < n; i++){
+        for(j = 0; j < n; j++){
+            sumMat[i][j] = m1[i][j] + m2[i][j];
+        }
+    }
+
+    for(i = 0; i < n; i++){
+        for(j = 0; j < n; j++){
+            printf("%d ",sumMat[i][j]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+#bash compile.sh serial_mat_add.c
+gcc serial_mat_add.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+#bash run.sh ./serial_mat_add.out 10 > output.txt
+./a.out > output2.txt
+#+end_src
+
+#+RESULTS:
+
+* Serial Matrix Addition static memory allocation
+#+begin_src C :tangle serial_mat_add_static.c
+#include<stdio.h>
+#include<stdlib.h>
+
+int main(int argc, char **argv){
+    const int n = 400;
+    int i, j;
+    int m1[n][n], m2[n][n], sumMat[n][n];
+    for(i = 0; i < n; i++){
+        for(j = 0; j < n; j++){
+            m1[i][j] = 1;
+            m2[i][j] = 1;
+        }
+    }
+    /*
+    for(i = 0; i < n; i++){
+        for(j = 0; j < n; j++){
+            printf("%d ",m1[i][j]);
+        }
+        printf("\n");
+    }
+    for(i = 0; i < n; i++){
+        for(j = 0; j < n; j++){
+            printf("%d ",m2[i][j]);
+        }
+        printf("\n");
+    }*/
+
+    for(i = 0; i < n; i++){
+        for(j = 0; j < n; j++){
+            sumMat[i][j] = m1[i][j] + m2[i][j];
+        }
+    }
+    for(i = 0; i < n; i++){
+        for(j = 0; j < n; j++){
+            printf("%d ",sumMat[i][j]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh serial_mat_add_static.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc serial_mat_add_static.c -o serial_mat_add_static.out -lm
+: ------------------------------------------------------------------
+: Compilation successful. Check at serial_mat_add_static.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./serial_mat_add_static.out 10 > output1.txt
+#+end_src
+
+#+RESULTS:
+
+* Parallel Matrix Addition
+#+begin_src C :tangle parallel_matrix_add.c
+#include<stdio.h>
+#include<mpi.h>
+#include<stdlib.h>
+
+int main(int argc, char **argv){
+    MPI_Init(NULL, NULL);
+    int n = 400;
+    int **m1, **m2, **sumMat;
+    m1 = (int**)malloc(sizeof(int*) * n);
+    m2 = (int**)malloc(sizeof(int*) * n);
+    sumMat = (int**)malloc(sizeof(int*) * n);
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if(rank == 0){
+        for(int i = 0; i < n; i++){
+            sumMat[i] = (int*)malloc(sizeof(int) * n);
+            m1[i] = (int*)malloc(sizeof(int) * n);
+            m2[i] = (int*)malloc(sizeof(int) * n);
+            for(int j = 0; j < n; j++){
+                m1[i][j] = 1;
+                m2[i][j] = 1;
+                sumMat[i][j] = 0;
+            }
+        }
+    }
+    int chunksize = n / size;
+    int start = rank * chunksize;
+    int end = start + chunksize;
+    if(rank == size - 1) end = n;
+
+    int **localArr1 = (int**) malloc(sizeof(int*) * chunksize);
+    int **localArr2 = (int**) malloc(sizeof(int*) * chunksize);
+    int **sumArr= (int**) malloc(sizeof(int*) * chunksize);
+    for(int i = 0; i < chunksize; i++){
+        localArr1[i] = (int*) malloc(sizeof(int) * n);
+        localArr2[i] = (int*) malloc(sizeof(int) * n);
+        sumArr[i] = (int*) malloc(sizeof(int) * n);
+    }
+    for(int i = 0; i < chunksize; i++){
+        MPI_Scatter(m1[i], n, MPI_INT, localArr1[i], n, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Scatter(m2[i], n, MPI_INT, localArr2[i], n, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+
+
+    for(int i = start; i < end; i++){
+        for(int j = 0; j < n; j++){
+            sumArr[i][j] = localArr1[i][j] + localArr2[i][j];
+        }
+    }
+    for(int i = 0; i < chunksize; i++){
+        MPI_Gather(sumArr[i], chunksize, MPI_INT, sumMat, chunksize * n, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+
+
+        for(int i = start; i < end; i++){
+            for(int j = 0; j < n; j++){
+                printf("%d ",sumMat[i][j]);
+            }
+            printf("\n");
+    }
+
+
+    MPI_Finalize();
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+bash compile.sh parallel_matrix_add.c
+#+end_src
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc parallel_matrix_add.c -o parallel_matrix_add.out -lm
+: ------------------------------------------------------------------
+: Compilation successful. Check at parallel_matrix_add.out
+: ------------------------------------------------------------------
+
+#+begin_src bash :results output :exports both
+bash run.sh ./parallel_matrix_add.out 10 > output3.txt
+#+end_src
+
+#+RESULTS:
+
+* Parallel Matrix Addition Using MPI_Scatter and MPI_Gather
+#+BEGIN_SRC C :tangle mpi_matrix_addition1.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
+
+int main() {
+    int i, j, rank, size, n = 10000;
+    int *m1, *m2, *sumMat, *sub_m1, *sub_m2, *sub_sumMat;
+
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int chunksize = (n * n) / size;
+
+    // Allocate memory for the full matrices on the root process
+    if (rank == 0) {
+        m1 = (int*)malloc(n * n * sizeof(int));
+        m2 = (int*)malloc(n * n * sizeof(int));
+        sumMat = (int*)malloc(n * n * sizeof(int));
+        for (i = 0; i < n * n; i++) {
+            m1[i] = 1;
+            m2[i] = 1;
+        }
+    }
+
+    // Allocate memory for the submatrices on each process
+    sub_m1 = (int*)malloc(chunksize * sizeof(int));
+    sub_m2 = (int*)malloc(chunksize * sizeof(int));
+    sub_sumMat = (int*)malloc(chunksize * sizeof(int));
+
+    double startTime = MPI_Wtime();
+    // Scatter the elements of the matrices to all processes
+    MPI_Scatter(m1, chunksize, MPI_INT, sub_m1, chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(m2, chunksize, MPI_INT, sub_m2, chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Perform the addition on the submatrices
+    for (i = 0; i < chunksize; i++) {
+        sub_sumMat[i] = sub_m1[i] + sub_m2[i];
+    }
+
+    // Gather the results from all processes
+    MPI_Gather(sub_sumMat, chunksize, MPI_INT, sumMat, chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    double endTime = MPI_Wtime();
+    // Print the result on the root process
+    if (rank == 0) {
+        int flag = 1;
+        for (i = 0; i < n * n; i++) {
+            if (sumMat[i] != 2) {
+                flag = 0;
+                break;
+            }
+        }
+        if (flag){
+          printf("_____PASS_____\n");
+          printf("Execution time: %lf\n", endTime - startTime);
+        }
+        else printf("_____FAIL_____\n");
+        // Free the allocated memory
+        free(m1);
+        free(m2);
+        free(sumMat);
+    }
+    free(sub_m1);
+    free(sub_m2);
+    free(sub_sumMat);
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+
+- Compile
+   #+BEGIN_SRC sh :results output :exports both
+   bash compile.sh mpi_matrix_addition1.c
+   #+END_SRC
+
+   #+RESULTS:
+   : ------------------------------------------------------------------
+   : Command executed: mpicc mpi_matrix_addition1.c -o mpi_matrix_addition1.out -lm
+   : ------------------------------------------------------------------
+   : Compilation successful. Check at mpi_matrix_addition1.out
+   : ------------------------------------------------------------------
+
+- Run
+   #+BEGIN_SRC sh :results output :exports both
+   bash run.sh ./mpi_matrix_addition1.out 10
+   #+END_SRC
+
+   #+RESULTS:
+   #+begin_example
+   ------------------------------------------------------------------
+   Command executed: mpirun -np 10 ./mpi_matrix_addition1.out
+   ------------------------------------------------------------------
+   ##################################################################
+   ##########                    OUTPUT                    ##########
+   ##################################################################
+
+   _____PASS_____
+   Execution time: 1.354426
+
+   ##################################################################
+   ##########                     DONE                     ##########
+   ##################################################################
+   #+end_example
