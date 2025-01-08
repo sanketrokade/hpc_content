@@ -8,11 +8,13 @@ int main(int argc, char **argv){
     m2 = (int**)malloc(sizeof(int*) * n);
     sumMat = (int**)malloc(sizeof(int*) * n);
     for(i = 0; i < n; i++){
+        sumMat[i] = (int*)malloc(sizeof(int) * n);
         m1[i] = (int*)malloc(sizeof(int) * n);
         m2[i] = (int*)malloc(sizeof(int) * n);
         for(j = 0; j < n; j++){
             m1[i][j] = 1;
             m2[i][j] = 1;
+            sumMat[i] = 0;
         }
     }
     /*
@@ -30,7 +32,6 @@ int main(int argc, char **argv){
     }*/
 
     for(i = 0; i < n; i++){
-        sumMat[i] = (int*)malloc(sizeof(int) * n);
         for(j = 0; j < n; j++){
             sumMat[i][j] = m1[i][j] + m2[i][j];
         }
