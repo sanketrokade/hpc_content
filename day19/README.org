@@ -1,1 +1,620 @@
 #+title: Day19
+
+* Serial Matrix Multiplication
+#+BEGIN_SRC C :tangle serial_matrix_multiplication.c
+#include <stdio.h>
+#include <stdlib.h>
+#include<omp.h>
+
+int main() {
+    int n = 2000;
+    int i, j, k;
+
+    // Allocate memory for matrices
+    int **A = (int **)malloc(n * sizeof(int *));
+    int **B = (int **)malloc(n * sizeof(int *));
+    int **C = (int **)malloc(n * sizeof(int *));
+    for (i = 0; i < n; i++) {
+        A[i] = (int *)malloc(n * sizeof(int));
+        B[i] = (int *)malloc(n * sizeof(int));
+        C[i] = (int *)malloc(n * sizeof(int));
+    }
+
+    // Initialize matrices
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            A[i][j] = 1;
+            B[i][j] = 1;
+            C[i][j] = 0;
+        }
+    }
+
+    double starttime = omp_get_wtime();
+    // Matrix multiplication
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            for (k = 0; k < n; k++) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+    double endtime = omp_get_wtime();
+
+    // Print result
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            printf("%d ", C[i][j]);
+        }
+        printf("\n");
+    }
+    printf("execution time: %lf\n", endtime - starttime);
+
+    // Free allocated memory
+    for (i = 0; i < n; i++) {
+        free(A[i]);
+        free(B[i]);
+        free(C[i]);
+    }
+    free(A);
+    free(B);
+    free(C);
+
+    return 0;
+}
+#+END_SRC
+
+#+BEGIN_SRC sh :results output :exports both
+bash compile.sh serial_matrix_multiplication.c
+#+END_SRC
+
+   #+RESULTS:
+   : ------------------------------------------------------------------
+   : Command executed: mpicc serial_matrix_multiplication.c -o serial_matrix_multiplication.out -lm -fopenmp
+   : ------------------------------------------------------------------
+   : Compilation successful. Check at serial_matrix_multiplication.out
+   : ------------------------------------------------------------------
+
+#+BEGIN_SRC sh :results output :exports both
+bash run.sh ./serial_matrix_multiplication.out 10 > output.txt
+#+END_SRC
+
+* Parallel Matrix Multiplication Using MPI
+This example demonstrates parallel matrix multiplication using `MPI_Scatter` and `MPI_Gather`.
+
+#+BEGIN_SRC C :tangle parallel_matrix_multiplication.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
+
+int main(int argc, char **argv) {
+    int i, j, k, rank, size, n = 400;
+    int *A, *B, *C, *sub_A, *sub_C;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int chunksize = n * n / size;
+
+    // Allocate memory for matrices on the root process
+    if (rank == 0) {
+        A = (int*)malloc(n * n * sizeof(int));
+        B = (int*)malloc(n * n * sizeof(int));
+        C = (int*)malloc(n * n * sizeof(int));
+        for (i = 0; i < n * n; i++) {
+            A[i] = 1;
+            B[i] = 1;
+            C[i] = 0;
+        }
+    } else {
+        B = (int*)malloc(n * n * sizeof(int));
+    }
+
+    // Allocate memory for submatrices
+    sub_A = (int*)malloc(chunksize * sizeof(int));
+    sub_C = (int*)malloc(chunksize * sizeof(int));
+    for (i = 0; i < chunksize; i++) {
+        sub_C[i] = 0;
+    }
+
+    // Broadcast matrix B to all processes
+    MPI_Bcast(B, n * n, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Scatter the rows of matrix A to all processes
+    MPI_Scatter(A, chunksize, MPI_INT, sub_A, chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+
+
+
+
+    // Perform the multiplication on the submatrices
+    for (i = 0; i < chunksize / n; i++) {
+        for (j = 0; j < n; j++) {
+            for (k = 0; k < n; k++) {
+                sub_C[i * n + j] += sub_A[i * n + k] * B[k * n + j];
+            }
+        }
+    }
+
+    // Gather the results from all processes
+    MPI_Gather(sub_C, chunksize, MPI_INT, C, chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Print the result on the root process
+    if (rank == 0) {
+        int flag = 1;
+        for (i = 0; i < n * n; i++) {
+            if (C[i] != n) {
+                flag = 0;
+                break;
+            }
+        }
+        if (flag) printf("_____PASS_____\n");
+        else printf("_____FAIL_____\n");
+
+        // Free allocated memory
+        free(A);
+        free(B);
+        free(C);
+    } else {
+        free(B);
+    }
+
+    free(sub_A);
+    free(sub_C);
+
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+
+#+BEGIN_SRC sh :results output :exports both
+bash compile.sh parallel_matrix_multiplication.c
+#+END_SRC
+
+#+RESULTS:
+: ------------------------------------------------------------------
+: Command executed: mpicc parallel_matrix_multiplication.c -o parallel_matrix_multiplication.out -lm
+: ------------------------------------------------------------------
+: Compilation successful. Check at parallel_matrix_multiplication.out
+: ------------------------------------------------------------------
+
+#+BEGIN_SRC sh :results output :exports both
+bash run.sh ./parallel_matrix_multiplication.out 10
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+------------------------------------------------------------------
+Command executed: mpirun -np 10 ./parallel_matrix_multiplication.out
+------------------------------------------------------------------
+##################################################################
+##########                    OUTPUT                    ##########
+##################################################################
+
+_____PASS_____
+
+##################################################################
+##########                     DONE                     ##########
+##################################################################
+#+end_example
+
+**Explanation:**
+1. The program initializes the MPI environment and retrieves the rank and size of the processes.
+2. Memory for the matrices is allocated, and matrices are initialized with 1's.
+3. The matrix B is broadcasted to all processes to ensure each process has the full matrix B.
+4. Matrix A is scattered among all processes so that each process receives a portion (submatrix).
+5. Each process performs the multiplication on its portion of the matrix.
+6. The resulting submatrices are gathered back into the full matrix C on the root process.
+7. The root process verifies and prints the result, and all allocated memory is freed.
+
+* OpenMP Tasking
+** Introduction to OpenMP Tasking
+   - OpenMP tasking is a powerful feature introduced to handle irregular and dynamic workloads.
+   - It allows the creation of tasks, which are units of work that can be executed independently.
+   - Tasks are distributed among threads for execution, enabling efficient parallelization of applications with unpredictable workloads.
+
+** Key Concepts
+   - **Task:**
+     - A unit of work created using the `#pragma omp task` directive.
+     - Contains code that can be executed independently.
+   - **Tasking Constructs:**
+     - `#pragma omp task`
+     - `#pragma omp taskwait`
+     - `#pragma omp taskgroup`
+
+** When to Use Tasking
+   - Divide-and-conquer algorithms (e.g., quicksort, mergesort).
+   - Recursive computations.
+   - Workloads with dynamically varying tasks.
+   - Problems where work cannot be evenly divided in advance.
+
+** Task Directive: Syntax
+#+begin_src c
+#pragma omp task [clauses]
+   structured-block
+#+end_src
+
+   - **Clauses:**
+     - `if(expression)`: Specifies whether the task should be created based on the condition.
+     - `default(shared | none)`: Specifies variable sharing.
+     - `private(list)`, `firstprivate(list)`, `shared(list)`: Data-sharing clauses.
+
+** Example 1: Simple Task Creation
+#+begin_src c :tangle task1.c
+#include <stdio.h>
+#include <omp.h>
+
+void work(int id) {
+    printf("Task %d is being executed by thread %d\n", id, omp_get_thread_num());
+}
+
+
+int main() {
+    #pragma omp parallel num_threads(5)
+    {
+        #pragma omp single
+        {
+            printf("%d is creating the task\n", omp_get_thread_num());
+            for (int i = 0; i < 5; i++) {
+                #pragma omp task
+                work(i);
+            }
+        }
+    }
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc task1.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: 4 is creating the task
+: Task 1 is being executed by thread 4
+: Task 0 is being executed by thread 1
+: Task 4 is being executed by thread 2
+: Task 2 is being executed by thread 4
+: Task 3 is being executed by thread 1
+
+** Explanation:
+   - The `single` construct ensures that only one thread creates tasks.
+   - Tasks are executed by any available thread in the team.
+
+** Taskwait Directive
+   - Ensures that all tasks created in the current context are completed before proceeding.
+   - Syntax:
+#+begin_src c
+#pragma omp taskwait
+#+end_src
+
+** Example 2: Task Synchronization
+#+begin_src c :tangle task2.c
+#include <stdio.h>
+#include <omp.h>
+
+void work(int id) {
+    printf("Task %d is being executed by thread %d\n", id, omp_get_thread_num());
+}
+
+int main() {
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            for (int i = 0; i < 5; i++) {
+                #pragma omp task
+                work(i);
+            }
+            #pragma omp taskwait
+            printf("All tasks are completed.\n");
+        }
+    }
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc task2.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: Task 0 is being executed by thread 6
+: Task 1 is being executed by thread 11
+: Task 4 is being executed by thread 1
+: Task 2 is being executed by thread 9
+: Task 3 is being executed by thread 10
+: All tasks are completed.
+
+** Taskgroup Directive
+   - Groups tasks together for synchronization.
+   - Ensures that all tasks in the group are completed before proceeding.
+   - Syntax:
+#+begin_src c
+#pragma omp taskgroup
+   structured-block
+#+end_src
+
+** Example 3: Using Taskgroup
+#+begin_src c :tangle task3.c
+#include <stdio.h>
+#include <omp.h>
+
+void work(int id) {
+    printf("Task %d is being executed by thread %d\n", id, omp_get_thread_num());
+}
+
+int main() {
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            #pragma omp taskgroup
+            {
+                for (int i = 0; i < 5; i++) {
+                    #pragma omp task
+                    work(i);
+                }
+            }
+            printf("All tasks in the group are completed.\n");
+        }
+    }
+    return 0;
+}
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc task3.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: Task 0 is being executed by thread 10
+: Task 2 is being executed by thread 6
+: Task 1 is being executed by thread 7
+: Task 3 is being executed by thread 8
+: Task 4 is being executed by thread 9
+: All tasks in the group are completed.
+
+** Advanced Features
+   - **Task Dependencies:**
+     - Allows you to specify dependencies between tasks using the `depend` clause.
+     - Syntax:
+#+begin_src c
+#pragma omp task depend(dependency-type : list)
+   structured-block
+#+end_src
+     - **Dependency Types:**
+       - `in`: Task depends on the data being available.
+       - `out`: Task produces data required by another task.
+       - `inout`: Task both consumes and produces data.
+
+** Example 4: Task Dependencies
+#+begin_src c
+#include <stdio.h>
+#include <omp.h>
+
+int main() {
+    int data = 0;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            #pragma omp task depend(out: data)
+            {
+                data = 42;
+                printf("Task 1: Produced data = %d\n", data);
+            }
+
+            #pragma omp task depend(in: data)
+            {
+                printf("Task 2: Consumed data = %d\n", data);
+            }
+        }
+    }
+    return 0;
+}
+#+end_src
+
+** Best Practices
+   - Use `if` clauses to limit task creation overhead for small tasks.
+   - Combine tasks with `taskgroup` for efficient synchronization.
+   - Use `depend` clauses for precise dependency management.
+   - Avoid excessive task creation to reduce runtime overhead.
+
+* test
+#+begin_src C :tangle test.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+
+#define N 10000
+
+void sum(int* arr, int start, int end, int* result) {
+    int sum = 0;
+    for (int i = start; i < end; i++) {
+        sum += arr[i];
+    }
+    *result = sum;
+}
+
+void totalSum(int* result1, int* result2, int* total) {
+    *total = *result1 + *result2;
+}
+
+int main() {
+    int* arr = (int*) malloc(N * sizeof(int));
+    int result1 = 0, result2 = 0, total = 0;
+
+    // Initialize the array
+    for (int i = 0; i < N; i++) {
+        arr[i] = i + 1;
+    }
+
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            #pragma omp task
+            sum(arr, 0, N/2, &result1);
+
+            #pragma omp task
+            sum(arr, N/2, N, &result2);
+
+            #pragma omp taskwait
+
+            #pragma omp task
+            totalSum(&result1, &result2, &total);
+        }
+
+    }
+
+    printf("Total sum: %d\n", total);
+
+    free(arr);
+    return 0;
+}
+
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc test.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: Total sum: 50005000
+
+* test2
+#+begin_src C :tangle test2.c
+
+/* Try to read and analyze the code and also change some of the parameters
+ * according to your needs. I have also added comments to make you aware of my
+ * thought process while doing the code.*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <omp.h>
+
+#define N 10000
+
+//function to calculate sum
+void sum(int* arr, int start, int end, int* result) {
+    int sum = 0;
+    for (int i = start; i < end; i++) {
+        sum += arr[i];
+    }
+    *result = sum;
+}
+
+//function to calculate totalSum
+void totalSum(int* result, int size, int* total) {
+    int sum = 0;
+    for(int i = 0; i < size; i++){
+        sum+= result[i];
+    }
+    *total = sum;
+}
+
+int main() {
+    omp_set_num_threads(5); //setting total number of threads
+    int* arr = (int*) malloc(N * sizeof(int));  //creating and allocating array
+    int *result, total = 0;
+    int start = 0, end = 0;
+
+    //allocating spaces for resultant sum array
+    //I want to store the sum by each task at a specific thread index
+    //Here size of resultant array will be equal to total_no_of_threads
+    //because each thread will do task of calculating there some and store
+    //it in there location which will be result[threadId]
+    result = (int*) malloc(omp_get_num_threads() * sizeof(int));
+
+    // Initialize the array
+    for (int i = 0; i < N; i++) {
+        arr[i] = i + 1;
+    }
+
+    int chunksize = 0;
+    #pragma omp parallel
+    {
+        //here chunksize will be equal to N / total number of threads
+        chunksize = N / omp_get_num_threads();
+        #pragma omp single
+        {
+            for(int i = 0; i < omp_get_num_threads(); i++){
+                //first task will start from 0 to chunksize
+                //second task will start from 1 * chunsize to its (start + chunksize)
+                start = i * chunksize;
+                if(i == omp_get_num_threads() - 1){
+                    //if your thread is last thread then we want to give all the remaining
+                    //iterations to last threads if there's any reminder threads
+                    end = N;
+                }
+                else{
+                    end = start + chunksize;
+                }
+                //creating tasks here and storing the result in result[i]
+                #pragma omp task
+                sum(arr, start, end, &result[i]);
+            }
+            //taskwait for synchronization
+            //try to remove taskwait and analyze the result
+            //your code more likely to be involved in race condition
+            #pragma omp taskwait
+            //task for final sum calculation
+            //below I used omp_get_num_threads to give the total size of result array
+            //which in my case will be equal to total number of threads
+            //bcz I created tasks equal to total number of threads
+            #pragma omp task
+            totalSum(result, omp_get_num_threads(), &total);
+        }
+
+    }
+
+    //printing total sum by tasking and by natural number sum formula
+    printf("Total sum by tasking: %d\n", total);
+    printf("Total sum by formula: %ld\n", ((N * 1L) * (N + 1)) / 2);
+
+    //resources deallocation
+    free(arr);
+    free(result);
+    return 0;
+}
+
+#+end_src
+
+#+begin_src bash :results output :exports both
+gcc test2.c -fopenmp
+#+end_src
+
+#+RESULTS:
+
+#+begin_src bash :results output :exports both
+./a.out
+#+end_src
+
+#+RESULTS:
+: Total sum by tasking: 50005000
+: Total sum by formula: 50005000
