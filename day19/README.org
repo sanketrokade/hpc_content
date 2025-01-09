@@ -1,5 +1,53 @@
 #+title: Day19
 
+* Scripts
+** compile script
+#+begin_src bash :tangle compile.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cb
+#spack load openmpi/c7kvqyq
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+inputFile=$1
+outputFile="${1%.*}.out"      # extract the name of the file without extension and adding extension .out
+#cmd=`mpicc $inputFile -o $outputFile`
+cmd="mpicc $inputFile -o $outputFile -lm -fopenmp"     # running code using MPI
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+$cmd
+
+echo "Compilation successful. Check at $outputFile"
+echo "------------------------------------------------------------------"
+#+end_src
+
+** run script
+#+begin_src bash :tangle run.sh
+#!/bin/sh
+
+#source /opt/ohpc/pub/apps/spack/share/spack/setup-env.sh
+#spack load gcc/5i5y5cbc
+source ~/git/spack/share/spack/setup-env.sh
+spack load openmpi
+
+cmd="mpirun -np $2 $1"
+echo "------------------------------------------------------------------"
+echo "Command executed: $cmd"
+echo "------------------------------------------------------------------"
+echo "##################################################################"
+echo "##########                    OUTPUT                    ##########"
+echo "##################################################################"
+echo
+mpirun -np $2 $1
+echo
+echo "##################################################################"
+echo "##########                     DONE                     ##########"
+echo "##################################################################"
+#+end_src
+
 * Serial Matrix Multiplication
 #+BEGIN_SRC C :tangle serial_matrix_multiplication.c
 #include <stdio.h>
@@ -511,8 +559,8 @@ gcc test.c -fopenmp
 #+begin_src C :tangle test2.c
 
 /* Try to read and analyze the code and also change some of the parameters
- * according to your needs. I have also added comments to make you aware of my
- * thought process while doing the code.*/
+ ,* according to your needs. I have also added comments to make you aware of my
+ ,* thought process while doing the code.*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -526,7 +574,7 @@ void sum(int* arr, int start, int end, int* result) {
     for (int i = start; i < end; i++) {
         sum += arr[i];
     }
-    *result = sum;
+    ,*result = sum;
 }
 
 //function to calculate totalSum
@@ -535,7 +583,7 @@ void totalSum(int* result, int size, int* total) {
     for(int i = 0; i < size; i++){
         sum+= result[i];
     }
-    *total = sum;
+    ,*total = sum;
 }
 
 int main() {
@@ -618,3 +666,248 @@ gcc test2.c -fopenmp
 #+RESULTS:
 : Total sum by tasking: 50005000
 : Total sum by formula: 50005000
+
+* MPI Initialization: MPI_Init vs. MPI_Init_thread
+MPI provides two main functions to initialize the MPI environment: `MPI_Init` and `MPI_Init_thread`. The primary difference is that `MPI_Init_thread` allows you to specify the desired level of thread support.
+** Levels of Thread Support
+- `MPI_THREAD_SINGLE`: Only one thread will execute.
+- `MPI_THREAD_FUNNELED`: The process may be multi-threaded, but only the main thread will make MPI calls.
+- `MPI_THREAD_SERIALIZED`: Multiple threads may make MPI calls, but only one at a time.
+- `MPI_THREAD_MULTIPLE`: Multiple threads may make MPI calls with no restrictions.
+** MPI_Init Example
+This example uses `MPI_Init` to initialize the MPI environment.
+#+BEGIN_SRC c :tangle mpi_init.c :results output :exports both
+#include <mpi.h>
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+    // Initialize the MPI environment
+    MPI_Init(&argc, &argv);
+
+    // Get the number of processes
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Print off a hello world message
+    printf("Hello world from processor %d out of %d processors\n", rank, world_size);
+
+    // Finalize the MPI environment.
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+** Compilation and Execution (MPI_Init)
+- Compile the program:
+  #+BEGIN_SRC sh :exports both :results output
+bash compile.sh mpi_init.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc mpi_init.c -o mpi_init.out
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at mpi_init.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :exports both :results output
+  bash run.sh ./mpi_init.out 6
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 6 ./mpi_init.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  Hello world from processor 2 out of 6 processors
+  Hello world from processor 3 out of 6 processors
+  Hello world from processor 5 out of 6 processors
+  Hello world from processor 4 out of 6 processors
+  Hello world from processor 1 out of 6 processors
+  Hello world from processor 0 out of 6 processors
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
+** MPI_Init_thread Example
+This example uses `MPI_Init_thread` to initialize the MPI environment with thread support.
+#+BEGIN_SRC C :tangle mpi_init_thread.c :results output :exports both
+#include <mpi.h>
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+    int provided;
+
+    // Initialize the MPI environment with thread support
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+
+    // Check the level of thread support provided
+    if (provided !=  MPI_THREAD_FUNNELED) {
+        printf("MPI does not provide required thread support\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // Get the number of processes
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Print off a hello world message
+    printf("Hello world from processor %d out of %d processors with thread support level %d\n", rank, world_size, provided);
+
+    // Finalize the MPI environment.
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+** Compilation and Execution (MPI_Init_thread)
+- Compile the program:
+  #+BEGIN_SRC sh :exports both :results output
+bash compile.sh mpi_init_thread.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc mpi_init_thread.c -o mpi_init_thread.out -lm -fopenmp
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at mpi_init_thread.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :exports both :results output
+bash run.sh ./mpi_init_thread.out 5
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 5 ./mpi_init_thread.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  Hello world from processor 0 out of 5 processors with thread support level 1
+  Hello world from processor 1 out of 5 processors with thread support level 1
+  Hello world from processor 3 out of 5 processors with thread support level 1
+  Hello world from processor 2 out of 5 processors with thread support level 1
+  Hello world from processor 4 out of 5 processors with thread support level 1
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
+
+** Summary
+- `MPI_Init` is used for standard MPI initialization without considering threading.
+- `MPI_Init_thread` allows the program to specify and check the level of thread support.
+  - Important for applications that require multi-threading in conjunction with MPI.
+  - Ensures that the required thread support is available.
+
+** hybrid
+#+BEGIN_SRC C :tangle h1.c :results output :exports both
+#include <mpi.h>
+#include <omp.h>
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+    int provided;
+
+    // Initialize the MPI environment with thread support
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+
+    // Check the level of thread support provided
+    if (provided !=  MPI_THREAD_MULTIPLE) {
+        printf("MPI does not provide required thread support\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // Get the number of processes
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+
+    #pragma omp parallel num_threads(5)
+    {
+        printf("thread %d inside rank %d\n", omp_get_thread_num(), rank);
+    }
+
+    // Finalize the MPI environment.
+    MPI_Finalize();
+    return 0;
+}
+#+END_SRC
+** Compilation and Execution (MPI_Init_thread)
+- Compile the program:
+  #+BEGIN_SRC sh :exports both :results output
+bash compile.sh h1.c
+  #+END_SRC
+
+  #+RESULTS:
+  : ------------------------------------------------------------------
+  : Command executed: mpicc h1.c -o h1.out -lm -fopenmp
+  : ------------------------------------------------------------------
+  : Compilation successful. Check at h1.out
+  : ------------------------------------------------------------------
+
+- Run the program:
+  #+BEGIN_SRC sh :exports both :results output
+bash run.sh ./h1.out 5
+  #+END_SRC
+
+  #+RESULTS:
+  #+begin_example
+  ------------------------------------------------------------------
+  Command executed: mpirun -np 5 ./h1.out
+  ------------------------------------------------------------------
+  ##################################################################
+  ##########                    OUTPUT                    ##########
+  ##################################################################
+
+  thread 2 inside rank 0
+  thread 4 inside rank 0
+  thread 1 inside rank 0
+  thread 3 inside rank 0
+  thread 0 inside rank 0
+  thread 1 inside rank 1
+  thread 4 inside rank 1
+  thread 2 inside rank 1
+  thread 3 inside rank 1
+  thread 0 inside rank 1
+  thread 4 inside rank 3
+  thread 1 inside rank 3
+  thread 2 inside rank 3
+  thread 3 inside rank 3
+  thread 0 inside rank 3
+  thread 4 inside rank 2
+  thread 1 inside rank 2
+  thread 2 inside rank 2
+  thread 3 inside rank 2
+  thread 0 inside rank 2
+  thread 4 inside rank 4
+  thread 1 inside rank 4
+  thread 2 inside rank 4
+  thread 3 inside rank 4
+  thread 0 inside rank 4
+
+  ##################################################################
+  ##########                     DONE                     ##########
+  ##################################################################
+  #+end_example
