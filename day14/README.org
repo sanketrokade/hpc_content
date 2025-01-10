@@ -609,6 +609,7 @@ int main() {
         local_sum += local_arr[i];
     }
 
+
     long long* global_sums = NULL;
     if (rank == 0) {
         global_sums = (long long*)malloc(size * sizeof(long long));
