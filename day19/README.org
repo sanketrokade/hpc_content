@@ -55,7 +55,7 @@ echo "##################################################################"
 #include<omp.h>
 
 int main() {
-    int n = 2000;
+    int n = 1000;
     int i, j, k;
 
     // Allocate memory for matrices
@@ -676,7 +676,7 @@ MPI provides two main functions to initialize the MPI environment: `MPI_Init` an
 - `MPI_THREAD_MULTIPLE`: Multiple threads may make MPI calls with no restrictions.
 ** MPI_Init Example
 This example uses `MPI_Init` to initialize the MPI environment.
-#+BEGIN_SRC c :tangle mpi_init.c :results output :exports both
+#+BEGIN_SRC C :tangle mpi_init.c :results output :exports both
 #include <mpi.h>
 #include <stdio.h>
 
