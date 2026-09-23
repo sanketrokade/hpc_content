@@ -1,0 +1,29 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<pthread.h>
+#define N 20
+
+int* arr;
+void* hello(void* threadId){
+    int tid = *(int*)threadId;
+    arr[tid] = tid;
+    free(threadId);
+}
+int main(){
+    arr = static_cast<int*>(malloc(sizeof(int) * N));
+    pthread_t* t;
+    t = static_cast<pthread_t*>(malloc(sizeof(pthread_t) * N));
+    for(int i = 0; i < N; i++){
+        int* a;
+        a = static_cast<int*>(malloc(sizeof(int)));
+        *a = i;
+        pthread_create(&t[i], NULL, hello, (void*)a);
+    }
+    for(int i = 0; i < N; i++)
+        pthread_join(t[i], NULL);
+    free(t);
+    for(int i = 0; i < N; i++) printf("%d ", arr[i]);
+    printf("\n");
+    return 0;
+}

@@ -1,0 +1,12 @@
+
+;; Function main (main, funcdef_no=31, decl_uid=3635, cgraph_uid=32, symbol_order=31) (executed once)
+
+int main ()
+{
+  <bb 2> [local count: 1073741824]:
+  __printf_chk (2, "Square of %d : %d\n", 10, 100);
+  return 0;
+
+}
+
+
