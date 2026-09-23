@@ -1,9 +1,12 @@
-# Ignore output files
+# build outputs
 *.out
-
-# Ignore executable files
-*.exe
-
-# Ignore object files
 *.o
-
+*.exe
+# editor / OS junk
+*~
+.DS_Store
+._*
+*.dSYM/
+.~lock*
+# batch job logs
+*.log
