@@ -1,0 +1,12 @@
+# build outputs
+*.out
+*.o
+*.exe
+# editor / OS junk
+*~
+.DS_Store
+._*
+*.dSYM/
+.~lock*
+# batch job logs
+*.log

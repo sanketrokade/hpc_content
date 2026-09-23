@@ -1,0 +1,932 @@
+# Day 19 — MPI: Matrix Multiplication, MPI_Init_thread
+
+[← Day 18 — MPI: Pi, Prime Count, Matrix Addition](../../mpi/day18-pi-primes-matrix/) · [Index](../../README.md) · [Day 20 — MPI: Barrier, Topologies, Performance](../../mpi/day20-barrier-topology-performance/)
+
+## Serial Matrix Multiplication
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include<omp.h>
+
+int main() {
+    int n = 1000;
+    int i, j, k;
+
+    // Allocate memory for matrices
+    int **A = (int **)malloc(n * sizeof(int *));
+    int **B = (int **)malloc(n * sizeof(int *));
+    int **C = (int **)malloc(n * sizeof(int *));
+    for (i = 0; i < n; i++) {
+        A[i] = (int *)malloc(n * sizeof(int));
+        B[i] = (int *)malloc(n * sizeof(int));
+        C[i] = (int *)malloc(n * sizeof(int));
+    }
+
+    // Initialize matrices
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            A[i][j] = 1;
+            B[i][j] = 1;
+            C[i][j] = 0;
+        }
+    }
+
+    double starttime = omp_get_wtime();
+    // Matrix multiplication
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            for (k = 0; k < n; k++) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+    double endtime = omp_get_wtime();
+
+    // Print result
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            printf("%d ", C[i][j]);
+        }
+        printf("\n");
+    }
+    printf("execution time: %lf\n", endtime - starttime);
+
+    // Free allocated memory
+    for (i = 0; i < n; i++) {
+        free(A[i]);
+        free(B[i]);
+        free(C[i]);
+    }
+    free(A);
+    free(B);
+    free(C);
+
+    return 0;
+}
+```
+
+```bash
+../../scripts/compile.sh serial_matrix_multiplication.c
+```
+
+```bash
+../../scripts/run.sh ./serial_matrix_multiplication.out 10 > output.txt
+```
+
+## Parallel Matrix Multiplication Using MPI
+
+This example demonstrates parallel matrix multiplication using `MPI_Scatter` and `MPI_Gather`.
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
+
+int main(int argc, char **argv) {
+    int i, j, k, rank, size, n = 400;
+    int *A, *B, *C, *sub_A, *sub_C;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int chunksize = n * n / size;
+
+    // Allocate memory for matrices on the root process
+    if (rank == 0) {
+        A = (int*)malloc(n * n * sizeof(int));
+        B = (int*)malloc(n * n * sizeof(int));
+        C = (int*)malloc(n * n * sizeof(int));
+        for (i = 0; i < n * n; i++) {
+            A[i] = 1;
+            B[i] = 1;
+            C[i] = 0;
+        }
+    } else {
+        B = (int*)malloc(n * n * sizeof(int));
+    }
+
+    // Allocate memory for submatrices
+    sub_A = (int*)malloc(chunksize * sizeof(int));
+    sub_C = (int*)malloc(chunksize * sizeof(int));
+    for (i = 0; i < chunksize; i++) {
+        sub_C[i] = 0;
+    }
+
+    // Broadcast matrix B to all processes
+    MPI_Bcast(B, n * n, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Scatter the rows of matrix A to all processes
+    MPI_Scatter(A, chunksize, MPI_INT, sub_A, chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Perform the multiplication on the submatrices
+    for (i = 0; i < chunksize / n; i++) {
+        for (j = 0; j < n; j++) {
+            for (k = 0; k < n; k++) {
+                sub_C[i * n + j] += sub_A[i * n + k] * B[k * n + j];
+            }
+        }
+    }
+
+    // Gather the results from all processes
+    MPI_Gather(sub_C, chunksize, MPI_INT, C, chunksize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Print the result on the root process
+    if (rank == 0) {
+        int flag = 1;
+        for (i = 0; i < n * n; i++) {
+            if (C[i] != n) {
+                flag = 0;
+                break;
+            }
+        }
+        if (flag) printf("_____PASS_____\n");
+        else printf("_____FAIL_____\n");
+
+        // Free allocated memory
+        free(A);
+        free(B);
+        free(C);
+    } else {
+        free(B);
+    }
+
+    free(sub_A);
+    free(sub_C);
+
+    MPI_Finalize();
+    return 0;
+}
+```
+
+```bash
+../../scripts/compile.sh parallel_matrix_multiplication.c
+```
+
+```bash
+../../scripts/run.sh ./parallel_matrix_multiplication.out 10
+```
+
+**Output:**
+
+```text
+
+_____PASS_____
+
+```
+
+****Explanation:****
+
+1.  The program initializes the MPI environment and retrieves the rank and size of the processes.
+2.  Memory for the matrices is allocated, and matrices are initialized with 1's.
+3.  The matrix B is broadcasted to all processes to ensure each process has the full matrix B.
+4.  Matrix A is scattered among all processes so that each process receives a portion (submatrix).
+5.  Each process performs the multiplication on its portion of the matrix.
+6.  The resulting submatrices are gathered back into the full matrix C on the root process.
+7.  The root process verifies and prints the result, and all allocated memory is freed.
+
+## OpenMP Tasking
+
+### Introduction to OpenMP Tasking
+
+- OpenMP tasking is a powerful feature introduced to handle irregular and dynamic workloads.
+- It allows the creation of tasks, which are units of work that can be executed independently.
+- Tasks are distributed among threads for execution, enabling efficient parallelization of applications with unpredictable workloads.
+
+### Key Concepts
+
+- ****Task:****
+  - A unit of work created using the `#pragma omp task` directive.
+  - Contains code that can be executed independently.
+- ****Tasking Constructs:****
+  - `#pragma omp task`
+  - `#pragma omp taskwait`
+  - `#pragma omp taskgroup`
+
+### When to Use Tasking
+
+- Divide-and-conquer algorithms (e.g., quicksort, mergesort).
+- Recursive computations.
+- Workloads with dynamically varying tasks.
+- Problems where work cannot be evenly divided in advance.
+
+### Task Directive: Syntax
+
+```c
+#pragma omp task [clauses]
+   structured-block
+```
+
+- ****Clauses:****
+  - `if(expression)`: Specifies whether the task should be created based on the condition.
+  - `default(shared \| none)`: Specifies variable sharing.
+  - `private(list)`, `firstprivate(list)`, `shared(list)`: Data-sharing clauses.
+
+### Example 1: Simple Task Creation
+
+```c
+#include <stdio.h>
+#include <omp.h>
+
+void work(int id) {
+    printf("Task %d is being executed by thread %d\n", id, omp_get_thread_num());
+}
+
+int main() {
+    #pragma omp parallel num_threads(5)
+    {
+        #pragma omp single
+        {
+            printf("%d is creating the task\n", omp_get_thread_num());
+            for (int i = 0; i < 5; i++) {
+                #pragma omp task
+                work(i);
+            }
+        }
+    }
+    return 0;
+}
+```
+
+```bash
+gcc task1.c -fopenmp
+```
+
+```bash
+./a.out
+```
+
+**Output:**
+
+```text
+4 is creating the task
+Task 1 is being executed by thread 4
+Task 0 is being executed by thread 1
+Task 4 is being executed by thread 2
+Task 2 is being executed by thread 4
+Task 3 is being executed by thread 1
+```
+
+### Explanation:
+
+- The `single` construct ensures that only one thread creates tasks.
+- Tasks are executed by any available thread in the team.
+
+### Taskwait Directive
+
+- Ensures that all tasks created in the current context are completed before proceeding.
+- Syntax:
+
+```c
+#pragma omp taskwait
+```
+
+### Example 2: Task Synchronization
+
+```c
+#include <stdio.h>
+#include <omp.h>
+
+void work(int id) {
+    printf("Task %d is being executed by thread %d\n", id, omp_get_thread_num());
+}
+
+int main() {
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            for (int i = 0; i < 5; i++) {
+                #pragma omp task
+                work(i);
+            }
+            #pragma omp taskwait
+            printf("All tasks are completed.\n");
+        }
+    }
+    return 0;
+}
+```
+
+```bash
+gcc task2.c -fopenmp
+```
+
+```bash
+./a.out
+```
+
+**Output:**
+
+```text
+Task 0 is being executed by thread 6
+Task 1 is being executed by thread 11
+Task 4 is being executed by thread 1
+Task 2 is being executed by thread 9
+Task 3 is being executed by thread 10
+All tasks are completed.
+```
+
+### Taskgroup Directive
+
+- Groups tasks together for synchronization.
+- Ensures that all tasks in the group are completed before proceeding.
+- Syntax:
+
+```c
+#pragma omp taskgroup
+   structured-block
+```
+
+### Example 3: Using Taskgroup
+
+```c
+#include <stdio.h>
+#include <omp.h>
+
+void work(int id) {
+    printf("Task %d is being executed by thread %d\n", id, omp_get_thread_num());
+}
+
+int main() {
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            #pragma omp taskgroup
+            {
+                for (int i = 0; i < 5; i++) {
+                    #pragma omp task
+                    work(i);
+                }
+            }
+            printf("All tasks in the group are completed.\n");
+        }
+    }
+    return 0;
+}
+```
+
+```bash
+gcc task3.c -fopenmp
+```
+
+```bash
+./a.out
+```
+
+**Output:**
+
+```text
+Task 0 is being executed by thread 10
+Task 2 is being executed by thread 6
+Task 1 is being executed by thread 7
+Task 3 is being executed by thread 8
+Task 4 is being executed by thread 9
+All tasks in the group are completed.
+```
+
+### Advanced Features
+
+- ****Task Dependencies:****
+  - Allows you to specify dependencies between tasks using the `depend` clause.
+  - Syntax:
+
+```c
+#pragma omp task depend(dependency-type : list)
+   structured-block
+```
+
+- ****Dependency Types:****
+  - `in`: Task depends on the data being available.
+  - `out`: Task produces data required by another task.
+  - `inout`: Task both consumes and produces data.
+
+### Example 4: Task Dependencies
+
+```c
+#include <stdio.h>
+#include <omp.h>
+
+int main() {
+    int data = 0;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            #pragma omp task depend(out: data)
+            {
+                data = 42;
+                printf("Task 1: Produced data = %d\n", data);
+            }
+
+            #pragma omp task depend(in: data)
+            {
+                printf("Task 2: Consumed data = %d\n", data);
+            }
+        }
+    }
+    return 0;
+}
+```
+
+### Best Practices
+
+- Use `if` clauses to limit task creation overhead for small tasks.
+- Combine tasks with `taskgroup` for efficient synchronization.
+- Use `depend` clauses for precise dependency management.
+- Avoid excessive task creation to reduce runtime overhead.
+
+## test
+
+```c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+
+#define N 10000
+
+void sum(int* arr, int start, int end, int* result) {
+    int sum = 0;
+    for (int i = start; i < end; i++) {
+        sum += arr[i];
+    }
+    *result = sum;
+}
+
+void totalSum(int* result1, int* result2, int* total) {
+    *total = *result1 + *result2;
+}
+
+int main() {
+    int* arr = (int*) malloc(N * sizeof(int));
+    int result1 = 0, result2 = 0, total = 0;
+
+    // Initialize the array
+    for (int i = 0; i < N; i++) {
+        arr[i] = i + 1;
+    }
+
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            #pragma omp task
+            sum(arr, 0, N/2, &result1);
+
+            #pragma omp task
+            sum(arr, N/2, N, &result2);
+
+            #pragma omp taskwait
+
+            #pragma omp task
+            totalSum(&result1, &result2, &total);
+        }
+
+    }
+
+    printf("Total sum: %d\n", total);
+
+    free(arr);
+    return 0;
+}
+
+```
+
+```bash
+gcc test.c -fopenmp
+```
+
+```bash
+./a.out
+```
+
+**Output:**
+
+```text
+Total sum: 50005000
+```
+
+## test2
+
+```c
+
+/* Try to read and analyze the code and also change some of the parameters
+ * according to your needs. I have also added comments to make you aware of my
+ * thought process while doing the code.*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <omp.h>
+
+#define N 10000
+
+//function to calculate sum
+void sum(int* arr, int start, int end, int* result) {
+    int sum = 0;
+    for (int i = start; i < end; i++) {
+        sum += arr[i];
+    }
+    *result = sum;
+}
+
+//function to calculate totalSum
+void totalSum(int* result, int size, int* total) {
+    int sum = 0;
+    for(int i = 0; i < size; i++){
+        sum+= result[i];
+    }
+    *total = sum;
+}
+
+int main() {
+    omp_set_num_threads(5); //setting total number of threads
+    int* arr = (int*) malloc(N * sizeof(int));  //creating and allocating array
+    int *result, total = 0;
+    int start = 0, end = 0;
+
+    //allocating spaces for resultant sum array
+    //I want to store the sum by each task at a specific thread index
+    //Here size of resultant array will be equal to total_no_of_threads
+    //because each thread will do task of calculating there some and store
+    //it in there location which will be result[threadId]
+    result = (int*) malloc(omp_get_num_threads() * sizeof(int));
+
+    // Initialize the array
+    for (int i = 0; i < N; i++) {
+        arr[i] = i + 1;
+    }
+
+    int chunksize = 0;
+    #pragma omp parallel
+    {
+        //here chunksize will be equal to N / total number of threads
+        chunksize = N / omp_get_num_threads();
+        #pragma omp single
+        {
+            for(int i = 0; i < omp_get_num_threads(); i++){
+                //first task will start from 0 to chunksize
+                //second task will start from 1 * chunsize to its (start + chunksize)
+                start = i * chunksize;
+                if(i == omp_get_num_threads() - 1){
+                    //if your thread is last thread then we want to give all the remaining
+                    //iterations to last threads if there's any reminder threads
+                    end = N;
+                }
+                else{
+                    end = start + chunksize;
+                }
+                //creating tasks here and storing the result in result[i]
+                #pragma omp task
+                sum(arr, start, end, &result[i]);
+            }
+            //taskwait for synchronization
+            //try to remove taskwait and analyze the result
+            //your code more likely to be involved in race condition
+            #pragma omp taskwait
+            //task for final sum calculation
+            //below I used omp_get_num_threads to give the total size of result array
+            //which in my case will be equal to total number of threads
+            //bcz I created tasks equal to total number of threads
+            #pragma omp task
+            totalSum(result, omp_get_num_threads(), &total);
+        }
+
+    }
+
+    //printing total sum by tasking and by natural number sum formula
+    printf("Total sum by tasking: %d\n", total);
+    printf("Total sum by formula: %ld\n", ((N * 1L) * (N + 1)) / 2);
+
+    //resources deallocation
+    free(arr);
+    free(result);
+    return 0;
+}
+
+```
+
+```bash
+gcc test2.c -fopenmp
+```
+
+```bash
+./a.out
+```
+
+**Output:**
+
+```text
+Total sum by tasking: 50005000
+Total sum by formula: 50005000
+```
+
+## MPI Initialization: MPI_Init vs. MPI_Init_thread
+
+MPI provides two main functions to initialize the MPI environment: `MPI_Init` and `MPI_Init_thread`. The primary difference is that `MPI_Init_thread` allows you to specify the desired level of thread support.
+
+### Levels of Thread Support
+
+- `MPI_THREAD_SINGLE`: Only one thread will execute.
+- `MPI_THREAD_FUNNELED`: The process may be multi-threaded, but only the main thread will make MPI calls.
+- `MPI_THREAD_SERIALIZED`: Multiple threads may make MPI calls, but only one at a time.
+- `MPI_THREAD_MULTIPLE`: Multiple threads may make MPI calls with no restrictions.
+
+### MPI_Init Example
+
+This example uses `MPI_Init` to initialize the MPI environment.
+
+```c
+#include <mpi.h>
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+    // Initialize the MPI environment
+    MPI_Init(&argc, &argv);
+
+    // Get the number of processes
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Print off a hello world message
+    printf("Hello world from processor %d out of %d processors\n", rank, world_size);
+
+    // Finalize the MPI environment.
+    MPI_Finalize();
+    return 0;
+}
+```
+
+### Compilation and Execution (MPI_Init)
+
+- Compile the program:
+
+  ```bash
+  ../../scripts/compile.sh mpi_init.c
+  ```
+
+- Run the program:
+
+  ```bash
+  ../../scripts/run.sh ./mpi_init.out 6
+  ```
+
+  **Output:**
+
+```text
+
+  Hello world from processor 2 out of 6 processors
+  Hello world from processor 3 out of 6 processors
+  Hello world from processor 5 out of 6 processors
+  Hello world from processor 4 out of 6 processors
+  Hello world from processor 1 out of 6 processors
+  Hello world from processor 0 out of 6 processors
+
+  ```
+
+### MPI_Init_thread Example
+
+This example uses `MPI_Init_thread` to initialize the MPI environment with thread support.
+
+```c
+#include <mpi.h>
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+    int provided;
+
+    // Initialize the MPI environment with thread support
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+
+    // Check the level of thread support provided
+    if (provided !=  MPI_THREAD_FUNNELED) {
+        printf("MPI does not provide required thread support\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // Get the number of processes
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Print off a hello world message
+    printf("Hello world from processor %d out of %d processors with thread support level %d\n", rank, world_size, provided);
+
+    // Finalize the MPI environment.
+    MPI_Finalize();
+    return 0;
+}
+```
+
+### Compilation and Execution (MPI_Init_thread)
+
+- Compile the program:
+
+  ```bash
+  ../../scripts/compile.sh mpi_init_thread.c
+  ```
+
+- Run the program:
+
+  ```bash
+  ../../scripts/run.sh ./mpi_init_thread.out 5
+  ```
+
+  **Output:**
+
+```text
+
+  Hello world from processor 0 out of 5 processors with thread support level 1
+  Hello world from processor 1 out of 5 processors with thread support level 1
+  Hello world from processor 3 out of 5 processors with thread support level 1
+  Hello world from processor 2 out of 5 processors with thread support level 1
+  Hello world from processor 4 out of 5 processors with thread support level 1
+
+  ```
+
+### Summary
+
+- `MPI_Init` is used for standard MPI initialization without considering threading.
+- `MPI_Init_thread` allows the program to specify and check the level of thread support.
+  - Important for applications that require multi-threading in conjunction with MPI.
+  - Ensures that the required thread support is available.
+
+### hybrid
+
+```c
+#include <mpi.h>
+#include <omp.h>
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+    int provided;
+
+    // Initialize the MPI environment with thread support
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+
+    // Check the level of thread support provided
+    if (provided !=  MPI_THREAD_MULTIPLE) {
+        printf("MPI does not provide required thread support\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // Get the number of processes
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the process
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    #pragma omp parallel num_threads(5)
+    {
+        printf("thread %d inside rank %d\n", omp_get_thread_num(), rank);
+    }
+
+    // Finalize the MPI environment.
+    MPI_Finalize();
+    return 0;
+}
+```
+
+### Compilation and Execution (MPI_Init_thread)
+
+- Compile the program:
+
+  ```bash
+  ../../scripts/compile.sh h1.c
+  ```
+
+- Run the program:
+
+  ```bash
+  ../../scripts/run.sh ./h1.out 5
+  ```
+
+  **Output:**
+
+```text
+
+  thread 2 inside rank 0
+  thread 4 inside rank 0
+  thread 1 inside rank 0
+  thread 3 inside rank 0
+  thread 0 inside rank 0
+  thread 1 inside rank 1
+  thread 4 inside rank 1
+  thread 2 inside rank 1
+  thread 3 inside rank 1
+  thread 0 inside rank 1
+  thread 4 inside rank 3
+  thread 1 inside rank 3
+  thread 2 inside rank 3
+  thread 3 inside rank 3
+  thread 0 inside rank 3
+  thread 4 inside rank 2
+  thread 1 inside rank 2
+  thread 2 inside rank 2
+  thread 3 inside rank 2
+  thread 0 inside rank 2
+  thread 4 inside rank 4
+  thread 1 inside rank 4
+  thread 2 inside rank 4
+  thread 3 inside rank 4
+  thread 0 inside rank 4
+
+  ```
+
+## test3
+
+```c
+
+#include <mpi.h>
+#include <omp.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char** argv) {
+    int rank, size;
+    long long data_size = 1000000000;
+    int num_threads = 10;
+    long long *data = NULL;
+    long long chunksize;
+    long long *local_data = NULL;
+    long long local_sum = 0;
+    long long global_sum = 0;
+
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if(provided != MPI_THREAD_FUNNELED){
+        printf("MPI_THREAD_FUNNELED not supported\n");
+        MPI_Finalize();
+        return 0;
+    }
+    chunksize = data_size / size;
+
+    if (rank == 0) {
+        data = (long long *)malloc(data_size * sizeof(long long));
+        for (long long i = 0; i < data_size; i++) {
+            data[i] = i + 1;
+        }
+    }
+
+    local_data = (long long *)malloc(chunksize * sizeof(long long ));
+
+    MPI_Scatter(data, chunksize, MPI_LONG_LONG, local_data, chunksize, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+
+    #pragma omp parallel for num_threads(num_threads) reduction(+:local_sum)
+    for (long long i = 0; i < chunksize; i++) {
+        local_sum += local_data[i];
+    }
+
+    MPI_Reduce(&local_sum, &global_sum, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (rank == 0) {
+        printf("Final sum: %lld\n", global_sum);
+    }
+
+    if (rank == 0) {
+        free(data);
+    }
+    free(local_data);
+    MPI_Finalize();
+
+    return 0;
+}
+
+```
+
+- Compile the program:
+
+  ```bash
+  ../../scripts/compile.sh test3.c
+  ```
+
+- Run the program:
+
+  ```bash
+  ../../scripts/run.sh ./test3.out 10
+  ```
+
+  **Output:**
+
+```text
+
+  Final sum: 500000000500000000
+
+  ```
+
+---
+[← Day 18 — MPI: Pi, Prime Count, Matrix Addition](../../mpi/day18-pi-primes-matrix/) · [Index](../../README.md) · [Day 20 — MPI: Barrier, Topologies, Performance](../../mpi/day20-barrier-topology-performance/)
