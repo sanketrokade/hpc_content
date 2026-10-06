@@ -1,6 +1,6 @@
 # HPL on a Single Laptop (WSL2)
 
-First hands-on run of HPL (High-Performance Linpack), the benchmark used to rank the TOP500 supercomputers — built from source and run on a laptop under WSL2.
+Hands-on run of HPL (High-Performance Linpack), the benchmark used to rank the TOP500 supercomputers — built from source and run on a laptop under WSL2.
 
 **Result: 140.46 GFLOPS, residual check PASSED** (N = 28,416, NB = 192, P×Q = 2×5, 108.91 s)
 
