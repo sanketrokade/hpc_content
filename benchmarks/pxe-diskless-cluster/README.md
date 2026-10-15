@@ -990,7 +990,6 @@ Backup: copy the VM folder (it contains the image and all of `/home`).
 - [ ] Faster boot: GRUB loading kernel/initramfs over HTTP instead of TFTP (verify Rocky's signed GRUB supports it), smaller initramfs
 - [ ] Investigate server → node read asymmetry (76 MB/s read vs 110 MB/s write)
 - [ ] Scale to the Windows lab PCs (heterogeneous: i5-1335U / i7-9700K / i7-10700; 8–16 GB)
-- [ ] Ask lab admin: BitLocker status/recovery keys, Dell's 931.5 GB `sda`, the old Ubuntu boot entries
 
 ---
 
